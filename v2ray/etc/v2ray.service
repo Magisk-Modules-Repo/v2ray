@@ -1,0 +1,59 @@
+#!/system/bin/sh
+
+NAME=v2ray
+V2RAY=/system/bin/${NAME}
+DATAPATH=/data/${NAME}
+RUNPATH=${DATAPATH}/run
+PIDFILE=${RUNPATH}/${NAME}.pid
+CONFFILE=${DATAPATH}/config.json
+
+V2RAY_OPTS="-config ${CONFFILE}"
+
+export V2RAY_LOCATION_ASSET=${DATAPATH}
+
+probe_service() {
+  PID=`cat ${PIDFILE} 2>/dev/null`
+  CMDFILE="/proc/${PID}/cmdline"
+  if [ -f ${PIDFILE} ] && [ -f ${CMDFILE} ] && [ `grep -c ${NAME} ${CMDFILE}` -gt 0 ] ; then
+    echo "${NAME} service is running. ( PID: ${PID} )"
+    return 0
+  else
+    return 1
+  fi
+}
+
+do_start() {
+  if ! probe_service && [ -f ${CONFFILE} ] && ${V2RAY} ${V2RAY_OPTS} -test ; then
+    echo "Starting ${NAME} service."
+    mkdir -p ${RUNPATH}
+    chown -R inet:inet ${DATAPATH}
+    chown inet:inet ${V2RAY}
+    chmod 6755 ${V2RAY}
+    ${V2RAY} ${V2RAY_OPTS} &
+    echo -n $! > ${PIDFILE}
+  fi
+}
+
+do_stop() {
+  if probe_service ; then
+    echo "Stopping ${NAME} service."
+    kill ${PID}
+  fi
+  rm -f ${PIDFILE}
+}
+
+case "$1" in
+  start)
+    do_start
+    ;;
+  stop)
+    do_stop
+    ;;
+  restart)
+    do_stop
+    do_start
+    ;;
+  *)
+    echo "$0:  usage:  $0 {start|stop|restart}"
+    ;;
+esac
