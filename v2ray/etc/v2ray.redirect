@@ -1,0 +1,149 @@
+#!/system/bin/sh
+
+route_id="1130"
+inet_uid="3003"
+route_name="v2ray"
+proxy_port="65535"
+proxy_mark="0x20151130"
+appid_file="/data/v2ray/appid.list"
+table_file="/data/misc/net/rt_tables"
+
+appid_list=`[ -f ${appid_file} ] && cat ${appid_file}`
+
+intranet=(0.0.0.0/8 10.0.0.0/8 127.0.0.0/8 169.254.0.0/16 172.16.0.0/12 192.168.0.0/16 224.0.0.0/4 240.0.0.0/4)
+
+probe_uid_app_name() {
+  app_name=`grep " $1 " /data/system/packages.list | cut -d ' ' -f 1`
+  app_name=`echo ${app_name} | sed 's/ / \& /g'`
+  if [ "${app_name}" != "" ] ; then
+    echo "Redirect ${app_name} APP's network."
+  else
+    echo "APP with uid=$1 is not found."
+    return 1
+  fi
+}
+
+delete_route_table() {
+  if eval "ip rule | grep -q \"from all fwmark ${proxy_mark} lookup\"" ; then
+    echo "Clean UDP redirection route table."
+    ip rule del fwmark ${proxy_mark} lookup ${route_id}
+    ip route flush table ${route_id}
+  fi
+  sed -i "/${route_id} ${route_name}/d" ${table_file}
+}
+
+create_route_table() {
+  echo "Create UDP redirection route table."
+  echo "${route_id} ${route_name}" >> ${table_file}
+  ip route add local default dev lo table ${route_id}
+  ip rule add fwmark ${proxy_mark} lookup ${route_id}
+}
+
+flush_tcp_iptables() {
+  echo "Clean TCP redirection iptables rules."
+  iptables -w 10 -t nat -D OUTPUT -p tcp -j TCP_PRE_PROXY 2>/dev/null
+  if eval "iptables -w 10 -t nat -L TCP_PRE_PROXY &>/dev/null" ; then
+    iptables -w 10 -t nat -F TCP_PRE_PROXY
+    iptables -w 10 -t nat -X TCP_PRE_PROXY
+  fi
+  if eval "iptables-save -t nat | grep -q ':V2RAY '" ; then
+    iptables -w 10 -t nat -F V2RAY
+    iptables -w 10 -t nat -X V2RAY
+  fi
+}
+
+flush_udp_iptables() {
+  echo "Clean UDP redirection iptables rules."
+  iptables -w 10 -t mangle -D PREROUTING -p udp -j V2RAY 2>/dev/null
+  iptables -w 10 -t mangle -D OUTPUT -p udp -j UDP_PRE_PROXY 2>/dev/null
+  if eval "iptables-save -t mangle | grep -q ':UDP_PRE_PROXY '" ; then
+    iptables -w 10 -t mangle -F UDP_PRE_PROXY
+    iptables -w 10 -t mangle -X UDP_PRE_PROXY
+  fi
+  if eval "iptables-save -t mangle | grep -q ':V2RAY '" ; then
+    iptables -w 10 -t mangle -F V2RAY
+    iptables -w 10 -t mangle -X V2RAY
+  fi
+}
+
+init_tcp_iptables() {
+  echo "Create TCP redirection iptables rules."
+  ## create NAT iptables for TCP redirect
+  iptables -w 10 -t nat -N V2RAY
+  iptables -w 10 -t nat -N TCP_PRE_PROXY
+  ## bypass intranet
+  for subnet in ${intranet[@]}; do
+    iptables -w 10 -t nat -A V2RAY -d ${subnet} -j RETURN
+  done
+  ## bypass v2ray program
+  iptables -w 10 -t nat -A TCP_PRE_PROXY -m owner --uid-owner ${inet_uid} -j RETURN
+  ## apply to NAT iptables OUTPUT
+  iptables -w 10 -t nat -A V2RAY -p tcp -j REDIRECT --to-ports ${proxy_port}
+}
+
+init_udp_iptables() {
+  echo "Create UDP redirection iptables rules."
+  ## create Mangle iptables for UDP redirect
+  iptables -w 10 -t mangle -N V2RAY
+  iptables -w 10 -t mangle -N UDP_PRE_PROXY
+  ## bypass intranet
+  for subnet in ${intranet[@]}; do
+    iptables -w 10 -t mangle -A UDP_PRE_PROXY -d ${subnet} -j RETURN
+  done
+  ## bypass v2ray program
+  iptables -w 10 -t mangle -A UDP_PRE_PROXY -m owner --uid-owner ${inet_uid} -j RETURN
+  ## apply to Mangle iptables OUTPUT & PREROUTING
+  iptables -w 10 -t mangle -A V2RAY -p udp -m mark --mark ${proxy_mark} -j TPROXY --on-ip 127.0.0.1 --on-port ${proxy_port}
+}
+
+redirect_iptables() {
+  if [ "${appid_list}" = "0" ] ; then
+  ## redirect global network
+    echo "Redirect TCP & UDP with Global mode."
+    iptables -w 10 -t nat -A TCP_PRE_PROXY -m owner ! --uid-owner ${inet_uid} -j V2RAY
+    iptables -w 10 -t mangle -A UDP_PRE_PROXY -m owner ! --uid-owner ${inet_uid} -j MARK --set-mark ${proxy_mark}
+  else
+  ## effect assign app
+    for appid in ${appid_list}; do
+      probe_uid_app_name ${appid} && \
+      iptables -w 10 -t nat -A TCP_PRE_PROXY -m owner --uid-owner ${appid} -j V2RAY && \
+      iptables -w 10 -t mangle -A UDP_PRE_PROXY -m owner --uid-owner ${appid} -j MARK --set-mark ${proxy_mark}
+    done
+  fi
+}
+
+apply_iptables_rules() {
+  iptables -w 10 -t nat -A OUTPUT -p tcp -j TCP_PRE_PROXY
+  iptables -w 10 -t mangle -A OUTPUT -p udp -j UDP_PRE_PROXY
+  iptables -w 10 -t mangle -A PREROUTING -p udp -j V2RAY
+}
+
+disable_redirect() {
+  delete_route_table
+  flush_tcp_iptables
+  flush_udp_iptables
+}
+
+enable_redirect() {
+  disable_redirect
+  create_route_table
+  init_tcp_iptables
+  init_udp_iptables
+  redirect_iptables
+  apply_iptables_rules
+}
+
+case "$1" in
+  enable)
+    enable_redirect
+    ;;
+  disable)
+    disable_redirect
+    ;;
+  renew)
+    enable_redirect
+    ;;
+  *)
+    echo "$0:  usage:  $0 {enable|disable|renew}"
+    ;;
+esac
