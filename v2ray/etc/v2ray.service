@@ -22,6 +22,13 @@ probe_service() {
   fi
 }
 
+simple_clean_iptables() {
+  echo "Clean relevant iptables simply."
+  iptables -w 10 -t nat -D OUTPUT -p tcp -j TCP_PRE_PROXY 2>/dev/null
+  iptables -w 10 -t mangle -D PREROUTING -p udp -j V2RAY 2>/dev/null
+  iptables -w 10 -t mangle -D OUTPUT -p udp -j UDP_PRE_PROXY 2>/dev/null
+}
+
 do_start() {
   if ! probe_service && [ -f ${CONFFILE} ] && ${V2RAY} ${V2RAY_OPTS} -test ; then
     echo "Starting ${NAME} service."
@@ -31,6 +38,16 @@ do_start() {
     chmod 6755 ${V2RAY}
     ${V2RAY} ${V2RAY_OPTS} &
     echo -n $! > ${PIDFILE}
+    sleep 10
+    if probe_service ; then
+      echo "Start ${NAME} service Done."
+    else
+      rm -f ${PIDFILE}
+      echo "Start ${NAME} service Failed."
+      return 1
+    fi
+  else
+    return 2
   fi
 }
 
@@ -47,11 +64,13 @@ case "$1" in
     do_start
     ;;
   stop)
+    simple_clean_iptables
     do_stop
     ;;
   restart)
     do_stop
-    do_start
+    do_start || \
+    simple_clean_iptables
     ;;
   *)
     echo "$0:  usage:  $0 {start|stop|restart}"

@@ -8,6 +8,7 @@
 
     // By default, V2Ray write error log to stdout.
     // "error": "/path/to/error/log/file",
+    "error": "/data/v2ray/run/error.log",
 
     // Log level, one of "debug", "info", "warning", "error", "none"
     "loglevel": "warning"
@@ -15,22 +16,22 @@
   // List of inbound proxy configurations.
   "inbounds": [{
     // Port to listen on. You may need root access if the value is less than 1024.
-    "port": 1080,
+    "port": 65535,
 
     // IP address to listen on. Change to "0.0.0.0" to listen on all network interfaces.
     "listen": "127.0.0.1",
 
     // Tag of the inbound proxy. May be used for routing.
-    "tag": "socks-inbound",
+    "tag": "proxy-inbound",
 
     // Protocol name of inbound proxy.
-    "protocol": "socks",
+    "protocol": "dokodemo-door",
 
     // Settings of the protocol. Varies based on protocol.
     "settings": {
-      "auth": "noauth",
-      "udp": false,
-      "ip": "127.0.0.1"
+      "timeout": 10,
+      "network": "tcp,udp",
+      "followRedirect": true
     },
 
     // Enable sniffing on TCP connection.
@@ -42,6 +43,15 @@
   }],
   // List of outbound proxy configurations.
   "outbounds": [{
+    // Replace your proxy protocol in this section, like: vmess or shadowsocks
+    "protocol": "freedom",
+
+    // Settings of the protocol. Varies based on protocol.
+    "settings": {},
+
+    // Tag of the outbound. May be used for routing.
+    "tag": "proxy"
+  },{
     // Protocol name of the outbound proxy.
     "protocol": "freedom",
 
@@ -65,10 +75,22 @@
     "domainStrategy": "IPOnDemand",
     "rules":[
       {
-        // Blocks access to private IPs. Remove this if you want to access your router.
+        // Bypass private IPs.
         "type": "field",
         "ip": ["geoip:private"],
-        "outboundTag": "blocked"
+        "outboundTag": "direct"
+      },
+      {
+        // Bypass all china IPs.
+        "type": "field",
+        "ip": ["geoip:cn"],
+        "outboundTag": "direct"
+      },
+      {
+        // Bypass all china sites.
+        "type": "field",
+        "domain": ["geosite:cn"],
+        "outboundTag": "direct"
       },
       {
         // Blocks major ads.
