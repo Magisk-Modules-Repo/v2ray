@@ -7,10 +7,21 @@ proxy_port="65535"
 proxy_mark="0x20151130"
 appid_file="/data/v2ray/appid.list"
 table_file="/data/misc/net/rt_tables"
+iptables_wait="iptables -w 10"
 
 appid_list=`[ -f ${appid_file} ] && cat ${appid_file}`
 
 intranet=(0.0.0.0/8 10.0.0.0/8 127.0.0.0/8 169.254.0.0/16 172.16.0.0/12 192.168.0.0/16 224.0.0.0/4 240.0.0.0/4)
+
+suit_iptables_version() {
+  iptables_version=`iptables -V | grep -o "v1\.[0-9]"`
+  ## just for lower version iptables
+  if [ "${iptables_version}" = "v1.4" ] ; then
+    export ANDROID_DATA=/data
+    export ANDROID_ROOT=/system
+    iptables_wait="iptables -w"
+  fi
+}
 
 probe_uid_app_name() {
   app_name=`grep " $1 " /data/system/packages.list | cut -d ' ' -f 1`
@@ -41,81 +52,81 @@ create_route_table() {
 
 flush_tcp_iptables() {
   echo "Clean TCP redirection iptables rules."
-  iptables -w 10 -t nat -D OUTPUT -p tcp -j TCP_PRE_PROXY 2>/dev/null
-  if eval "iptables -w 10 -t nat -L TCP_PRE_PROXY &>/dev/null" ; then
-    iptables -w 10 -t nat -F TCP_PRE_PROXY
-    iptables -w 10 -t nat -X TCP_PRE_PROXY
+  ${iptables_wait} -t nat -D OUTPUT -p tcp -j TCP_PRE_PROXY 2>/dev/null
+  if eval "iptables-save -t nat | grep -q ':TCP_PRE_PROXY '" ; then
+    ${iptables_wait} -t nat -F TCP_PRE_PROXY
+    ${iptables_wait} -t nat -X TCP_PRE_PROXY
   fi
   if eval "iptables-save -t nat | grep -q ':V2RAY '" ; then
-    iptables -w 10 -t nat -F V2RAY
-    iptables -w 10 -t nat -X V2RAY
+    ${iptables_wait} -t nat -F V2RAY
+    ${iptables_wait} -t nat -X V2RAY
   fi
 }
 
 flush_udp_iptables() {
   echo "Clean UDP redirection iptables rules."
-  iptables -w 10 -t mangle -D PREROUTING -p udp -j V2RAY 2>/dev/null
-  iptables -w 10 -t mangle -D OUTPUT -p udp -j UDP_PRE_PROXY 2>/dev/null
+  ${iptables_wait} -t mangle -D PREROUTING -p udp -j V2RAY 2>/dev/null
+  ${iptables_wait} -t mangle -D OUTPUT -p udp -j UDP_PRE_PROXY 2>/dev/null
   if eval "iptables-save -t mangle | grep -q ':UDP_PRE_PROXY '" ; then
-    iptables -w 10 -t mangle -F UDP_PRE_PROXY
-    iptables -w 10 -t mangle -X UDP_PRE_PROXY
+    ${iptables_wait} -t mangle -F UDP_PRE_PROXY
+    ${iptables_wait} -t mangle -X UDP_PRE_PROXY
   fi
   if eval "iptables-save -t mangle | grep -q ':V2RAY '" ; then
-    iptables -w 10 -t mangle -F V2RAY
-    iptables -w 10 -t mangle -X V2RAY
+    ${iptables_wait} -t mangle -F V2RAY
+    ${iptables_wait} -t mangle -X V2RAY
   fi
 }
 
 init_tcp_iptables() {
   echo "Create TCP redirection iptables rules."
   ## create NAT iptables for TCP redirect
-  iptables -w 10 -t nat -N V2RAY
-  iptables -w 10 -t nat -N TCP_PRE_PROXY
+  ${iptables_wait} -t nat -N V2RAY
+  ${iptables_wait} -t nat -N TCP_PRE_PROXY
   ## bypass intranet
   for subnet in ${intranet[@]}; do
-    iptables -w 10 -t nat -A V2RAY -d ${subnet} -j RETURN
+    ${iptables_wait} -t nat -A V2RAY -d ${subnet} -j RETURN
   done
   ## bypass v2ray program
-  iptables -w 10 -t nat -A TCP_PRE_PROXY -m owner --uid-owner ${inet_uid} -j RETURN
+  ${iptables_wait} -t nat -A TCP_PRE_PROXY -m owner --uid-owner ${inet_uid} -j RETURN
   ## apply to NAT iptables OUTPUT
-  iptables -w 10 -t nat -A V2RAY -p tcp -j REDIRECT --to-ports ${proxy_port}
+  ${iptables_wait} -t nat -A V2RAY -p tcp -j REDIRECT --to-ports ${proxy_port}
 }
 
 init_udp_iptables() {
   echo "Create UDP redirection iptables rules."
   ## create Mangle iptables for UDP redirect
-  iptables -w 10 -t mangle -N V2RAY
-  iptables -w 10 -t mangle -N UDP_PRE_PROXY
+  ${iptables_wait} -t mangle -N V2RAY
+  ${iptables_wait} -t mangle -N UDP_PRE_PROXY
   ## bypass intranet
   for subnet in ${intranet[@]}; do
-    iptables -w 10 -t mangle -A UDP_PRE_PROXY -d ${subnet} -j RETURN
+    ${iptables_wait} -t mangle -A UDP_PRE_PROXY -d ${subnet} -j RETURN
   done
   ## bypass v2ray program
-  iptables -w 10 -t mangle -A UDP_PRE_PROXY -m owner --uid-owner ${inet_uid} -j RETURN
+  ${iptables_wait} -t mangle -A UDP_PRE_PROXY -m owner --uid-owner ${inet_uid} -j RETURN
   ## apply to Mangle iptables OUTPUT & PREROUTING
-  iptables -w 10 -t mangle -A V2RAY -p udp -m mark --mark ${proxy_mark} -j TPROXY --on-ip 127.0.0.1 --on-port ${proxy_port}
+  ${iptables_wait} -t mangle -A V2RAY -p udp -m mark --mark ${proxy_mark} -j TPROXY --on-ip 127.0.0.1 --on-port ${proxy_port}
 }
 
 redirect_iptables() {
   if [ "${appid_list}" = "0" ] ; then
   ## redirect global network
     echo "Redirect TCP & UDP with Global mode."
-    iptables -w 10 -t nat -A TCP_PRE_PROXY -m owner ! --uid-owner ${inet_uid} -j V2RAY
-    iptables -w 10 -t mangle -A UDP_PRE_PROXY -m owner ! --uid-owner ${inet_uid} -j MARK --set-mark ${proxy_mark}
+    ${iptables_wait} -t nat -A TCP_PRE_PROXY -m owner ! --uid-owner ${inet_uid} -j V2RAY
+    ${iptables_wait} -t mangle -A UDP_PRE_PROXY -m owner ! --uid-owner ${inet_uid} -j MARK --set-mark ${proxy_mark}
   else
   ## effect assign app
     for appid in ${appid_list}; do
       probe_uid_app_name ${appid} && \
-      iptables -w 10 -t nat -A TCP_PRE_PROXY -m owner --uid-owner ${appid} -j V2RAY && \
-      iptables -w 10 -t mangle -A UDP_PRE_PROXY -m owner --uid-owner ${appid} -j MARK --set-mark ${proxy_mark}
+      ${iptables_wait} -t nat -A TCP_PRE_PROXY -m owner --uid-owner ${appid} -j V2RAY && \
+      ${iptables_wait} -t mangle -A UDP_PRE_PROXY -m owner --uid-owner ${appid} -j MARK --set-mark ${proxy_mark}
     done
   fi
 }
 
 apply_iptables_rules() {
-  iptables -w 10 -t nat -A OUTPUT -p tcp -j TCP_PRE_PROXY
-  iptables -w 10 -t mangle -A OUTPUT -p udp -j UDP_PRE_PROXY
-  iptables -w 10 -t mangle -A PREROUTING -p udp -j V2RAY
+  ${iptables_wait} -t nat -A OUTPUT -p tcp -j TCP_PRE_PROXY
+  ${iptables_wait} -t mangle -A OUTPUT -p udp -j UDP_PRE_PROXY
+  ${iptables_wait} -t mangle -A PREROUTING -p udp -j V2RAY
 }
 
 disable_redirect() {
@@ -125,7 +136,6 @@ disable_redirect() {
 }
 
 enable_redirect() {
-  disable_redirect
   create_route_table
   init_tcp_iptables
   init_udp_iptables
@@ -133,14 +143,18 @@ enable_redirect() {
   apply_iptables_rules
 }
 
+suit_iptables_version
+
 case "$1" in
   enable)
+    disable_redirect
     enable_redirect
     ;;
   disable)
     disable_redirect
     ;;
   renew)
+    disable_redirect
     enable_redirect
     ;;
   *)

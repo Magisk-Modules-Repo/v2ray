@@ -5,6 +5,7 @@ V2RAY=/system/bin/${NAME}
 DATAPATH=/data/${NAME}
 RUNPATH=${DATAPATH}/run
 PIDFILE=${RUNPATH}/${NAME}.pid
+EXECLOG=${RUNPATH}/error.log
 CONFFILE=${DATAPATH}/config.json
 
 V2RAY_OPTS="-config ${CONFFILE}"
@@ -36,9 +37,9 @@ do_start() {
     chown -R inet:inet ${DATAPATH}
     chown inet:inet ${V2RAY}
     chmod 6755 ${V2RAY}
-    ${V2RAY} ${V2RAY_OPTS} &
+    nohup ${V2RAY} ${V2RAY_OPTS} &>${EXECLOG} &
     echo -n $! > ${PIDFILE}
-    sleep 10
+    sleep 5
     if probe_service ; then
       echo "Start ${NAME} service Done."
     else
@@ -72,7 +73,11 @@ case "$1" in
     do_start || \
     simple_clean_iptables
     ;;
+  status)
+    probe_service || \
+    echo "${NAME} service is stopped."
+    ;;
   *)
-    echo "$0:  usage:  $0 {start|stop|restart}"
+    echo "$0:  usage:  $0 {start|stop|restart|status}"
     ;;
 esac
