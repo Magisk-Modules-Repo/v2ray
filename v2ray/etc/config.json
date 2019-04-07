@@ -19,7 +19,7 @@
     "port": 65535,
 
     // IP address to listen on. Change to "0.0.0.0" to listen on all network interfaces.
-    "listen": "127.0.0.1",
+    "listen": "0.0.0.0",
 
     // Tag of the inbound proxy. May be used for routing.
     "tag": "proxy-inbound",
