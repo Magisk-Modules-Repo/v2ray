@@ -107,6 +107,7 @@ stop_service() {
   if display_v2ray_pid ; then
     echo "[Info]: Stopping ${bin_name} service."
     kill `cat ${pid_file}`
+    sleep 1
     display_v2ray_pid
   fi
   rm -f ${pid_file}
