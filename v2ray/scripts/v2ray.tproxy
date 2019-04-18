@@ -9,6 +9,7 @@ table_file="/data/misc/net/rt_tables"
 appid_file="/data/v2ray/appid.list"
 softap_file="/data/v2ray/softap.list"
 iptables_wait="iptables"
+app_proxy_mode="none"
 appid_list=()
 softap_list=()
 v2ray_share=false
@@ -57,10 +58,35 @@ probe_v2ray_listen() {
 }
 
 probe_v2ray_target() {
-  [ -f ${appid_file} ] && appid_list=(`cat ${appid_file}`) || unset appid_list
+  ## probe proxy app
+  if [ -f ${appid_file} ] ; then
+    ## check appid_file is white-list or black-list
+    if head -1 "${appid_file}" | grep -q 'bypass' ; then
+      app_proxy_mode="skip"
+    else
+      app_proxy_mode="pick"
+    fi
+    ## filter appid number
+    while read appid_line ; do
+      appid_text=(`echo ${appid_line}`)
+      for appid_word in ${appid_text[*]} ; do
+        if echo "${appid_word}" | grep -q '#' ; then
+          break
+        elif [ "${appid_word}" -gt 0 ] 2>/dev/null ; then
+          appid_list=(${appid_list[*]} ${appid_word})
+        fi
+      done
+    done < ${appid_file}
+  fi
+  ## probe proxy wifi interface
   ${v2ray_share} && [ -f ${softap_file} ] && softap_list=(`cat ${softap_file}`) || unset softap_list
-  [ ${#appid_list[@]} -gt 0 ] && proxy_for_app=true
+  ## check proxy app or not
+  if ( [ "${app_proxy_mode}" = "skip" ] || ( [ "${app_proxy_mode}" = "pick" ] && [ ${#appid_list[@]} -gt 0 ] ) ) ; then
+    proxy_for_app=true
+  fi
+  ## check proxy wifi guest or not
   [ ${#softap_list[@]} -gt 0 ] && proxy_for_guest=true
+  ## check enable proxy iptables or not
   if ! ( ${proxy_for_app} || ${proxy_for_guest} ) ; then
     echo "[Error]: V2Ray service is not proxy for APP or WiFi guest."
     exit 1
@@ -68,10 +94,11 @@ probe_v2ray_target() {
 }
 
 probe_uid_app_name() {
+  app_handle="$2"
   app_name=`grep " $1 " /data/system/packages.list | cut -d ' ' -f 1`
   app_name=`echo ${app_name} | sed 's/ / \& /g'`
   if [ "${app_name}" != "" ] ; then
-    echo "[Info]: Proxy ${app_name} APP's network."
+    echo "[Info]: ${app_handle} ${app_name} APP's network."
   else
     echo "[Warning]: APP with uid=$1 is not found."
     return 1
@@ -98,22 +125,6 @@ flush_nat_iptables() {
   unset iptables_chains
 }
 
-flush_mangle_iptables() {
-  echo "[Info]: Clean mangle proxy iptables rules."
-  iptables_chains=`iptables-save -t mangle | cut -d ' ' -f 1 | tr "\n" " "`
-  ${iptables_wait} -t mangle -D PREROUTING -p udp -j V2RAY 2>/dev/null
-  ${iptables_wait} -t mangle -D OUTPUT -p udp -j APP_UDP_PROXY 2>/dev/null
-  if eval "echo \"${iptables_chains}\" | grep -q \":APP_UDP_PROXY \"" ; then
-    ${iptables_wait} -t mangle -F APP_UDP_PROXY
-    ${iptables_wait} -t mangle -X APP_UDP_PROXY
-  fi
-  if eval "echo \"${iptables_chains}\" | grep -q \":V2RAY \"" ; then
-    ${iptables_wait} -t mangle -F V2RAY
-    ${iptables_wait} -t mangle -X V2RAY
-  fi
-  unset iptables_chains
-}
-
 flush_filter_iptables() {
   iptables_chains=`iptables-save -t filter | cut -d ' ' -f 1 | tr "\n" " "`
   if eval "echo \"${iptables_chains}\" | grep -q \":PROTECT_V2RAY \"" ; then
@@ -130,53 +141,30 @@ proxy_app_tcp_iptables() {
   ${iptables_wait} -t nat -N APP_TCP_PROXY
   ## bypass v2ray program
   ${iptables_wait} -t nat -A APP_TCP_PROXY -m owner --uid-owner ${inet_uid} -j RETURN
-  ## 
-  if [ "${appid_list[*]}" = "0" ] ; then
-  ## proxy all apps network
-    echo "[Info]: Proxy all APP's TCP network."
-    ${iptables_wait} -t nat -A APP_TCP_PROXY -m owner ! --uid-owner ${inet_uid} -j V2RAY
-  else
-  ## proxy assign app
+  ## white-list mode
+  if [ "${app_proxy_mode}" = "pick" ] ; then
+    ## proxy all apps network
+    if [ "${appid_list[*]}" = "0" ] ; then
+      echo "[Info]: Proxy all APP's TCP network."
+      ${iptables_wait} -t nat -A APP_TCP_PROXY -m owner ! --uid-owner ${inet_uid} -j V2RAY
+    ## proxy assign app
+    else
+      for appid in ${appid_list[@]}; do
+        probe_uid_app_name ${appid} "Proxy" && \
+        ${iptables_wait} -t nat -A APP_TCP_PROXY -m owner --uid-owner ${appid} -j V2RAY
+      done
+    fi
+  ## black-list mode
+  elif [ "${app_proxy_mode}" = "skip" ] ; then
     for appid in ${appid_list[@]}; do
-      probe_uid_app_name ${appid} && \
-      ${iptables_wait} -t nat -A APP_TCP_PROXY -m owner --uid-owner ${appid} -j V2RAY
+      probe_uid_app_name ${appid} "Ignore" && \
+      ${iptables_wait} -t nat -A APP_TCP_PROXY -m owner --uid-owner ${appid} -j RETURN
     done
+    echo "[Info]: Proxy all remaining APP's TCP network."
+    ${iptables_wait} -t nat -A APP_TCP_PROXY -m owner ! --uid-owner ${inet_uid} -j V2RAY
   fi
   ## apply proxy rules to iptables
   ${iptables_wait} -t nat -A OUTPUT -p tcp -j APP_TCP_PROXY
-}
-
-proxy_app_udp_iptables() {
-  ## create iptables proxy chains for app udp
-  ## and test iptables support TPROXY or not
-  ${iptables_wait} -t mangle -N V2RAY
-  ${iptables_wait} -t mangle -A V2RAY -p udp -m mark --mark ${proxy_mark} -j TPROXY --on-ip 127.0.0.1 --on-port ${proxy_port}
-  if [ "$?" != "0" ] ; then
-    ## iptables not support TPROXY
-    ${iptables_wait} -t mangle -X V2RAY
-    echo "[Warning]: iptables in this device is not support TPROXY, Abort proxy UDP network."
-  else
-    ## iptables support TPROXY
-    ${iptables_wait} -t mangle -N APP_UDP_PROXY
-    ## set proxy chains bypass intranet
-    for subnet in ${intranet[@]}; do
-      ${iptables_wait} -t mangle -A APP_UDP_PROXY -d ${subnet} -j RETURN
-    done
-    ${iptables_wait} -t mangle -A APP_UDP_PROXY -m owner --uid-owner ${inet_uid} -j RETURN
-    if [ "${appid_list[*]}" = "0" ] ; then
-    ## proxy all apps network
-      echo "[Info]: Proxy all APP's UDP network."
-      ${iptables_wait} -t mangle -A APP_UDP_PROXY -m owner ! --uid-owner ${inet_uid} -j MARK --set-mark ${proxy_mark}
-    else
-    ## proxy assign app
-      for appid in ${appid_list[@]}; do
-        probe_uid_app_name ${appid} && \
-        ${iptables_wait} -t mangle -A APP_UDP_PROXY -m owner --uid-owner ${appid} -j MARK --set-mark ${proxy_mark}
-      done
-    fi
-    ${iptables_wait} -t mangle -A PREROUTING -p udp -j V2RAY
-    ${iptables_wait} -t mangle -A OUTPUT -p udp -j APP_UDP_PROXY
-  fi
 }
 
 proxy_guest_tcp_iptables() {
@@ -229,26 +217,8 @@ filter_proxy_iptables() {
   fi
 }
 
-delete_proxy_route() {
-  if eval "ip rule | grep -q \"from all fwmark ${proxy_mark} lookup\"" ; then
-    echo "[Info]: Clean proxy route table."
-    eval "ip rule del fwmark ${proxy_mark} lookup ${route_id}"
-    eval "ip route flush table ${route_id}"
-  fi
-  sed -i "/${route_id} ${route_name}/d" ${table_file}
-}
-
-create_proxy_route() {
-  echo "[Info]: Create proxy route table."
-  echo "${route_id} ${route_name}" >> ${table_file}
-  eval "ip route add local default dev lo table ${route_id}"
-  eval "ip rule add fwmark ${proxy_mark} lookup ${route_id}"
-}
-
 disable_proxy() {
-  # delete_proxy_route
   flush_nat_iptables
-  # flush_mangle_iptables
   flush_filter_iptables
 }
 
@@ -257,7 +227,6 @@ enable_proxy() {
   probe_v2ray_target
   create_proxy_iptables
   filter_proxy_iptables
-  # create_proxy_route
 }
 
 # find_ip_path
