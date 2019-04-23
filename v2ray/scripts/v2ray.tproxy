@@ -58,6 +58,12 @@ probe_v2ray_listen() {
 }
 
 probe_v2ray_target() {
+  ## add eof to appid and softap file
+  echo "" >> "${appid_file}"
+  echo "" >> "${softap_file}"
+  ## trim empty line in appid and softap file
+  sed -i '/^$/d' "${appid_file}"
+  sed -i '/^$/d' "${softap_file}"
   ## probe proxy app
   if [ -f ${appid_file} ] ; then
     ## check appid_file is white-list or black-list
@@ -72,7 +78,7 @@ probe_v2ray_target() {
       for appid_word in ${appid_text[*]} ; do
         if echo "${appid_word}" | grep -q '#' ; then
           break
-        elif [ "${appid_word}" -gt 0 ] 2>/dev/null ; then
+        elif [ "${appid_word}" -ge 0 ] 2>/dev/null ; then
           appid_list=(${appid_list[*]} ${appid_word})
         fi
       done
