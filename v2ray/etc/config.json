@@ -29,7 +29,8 @@
 
     // Settings of the protocol. Varies based on protocol.
     "settings": {
-      "timeout": 10,
+      // Disable timeout setting for keeping persistent connection. Such as FCM.   
+      //  "timeout": 10,
       "network": "tcp,udp",
       "followRedirect": true
     },
