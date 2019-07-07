@@ -142,6 +142,7 @@ on_install() {
   mkdir -p $MODPATH/system/etc
   unzip -j -o "$ZIPFILE" 'v2ray/scripts/*' -d $MODPATH/scripts >&2
   unzip -j -o "$ZIPFILE" "v2ray/bin/$ARCH/*" -d $MODPATH/system/bin >&2
+  [ -f $MODPATH/system/bin/v2ray-dns.keeper ] && mv $MODPATH/system/bin/v2ray-dns.keeper $MODPATH/scripts >&2
 
   # copy v2ray data and config
   ui_print "- Copy V2Ray config and data files"
@@ -169,6 +170,9 @@ set_permissions() {
   set_perm  $MODPATH/scripts/v2ray.inotify    0  0  0755
   set_perm  $MODPATH/scripts/v2ray.service    0  0  0755
   set_perm  $MODPATH/scripts/v2ray.tproxy     0  0  0755
+  set_perm  $MODPATH/scripts/v2ray-dns.handle    0  0  0755
+  set_perm  $MODPATH/scripts/v2ray-dns.keeper    0  0  0755
+  set_perm  $MODPATH/scripts/v2ray-dns.service   0  0  0755
   set_perm  $MODPATH/system/bin/v2ray  ${inet_uid}  ${inet_uid}  0755
   set_perm  $MODPATH/system/bin/v2ctl  ${inet_uid}  ${inet_uid}  0755
   set_perm  /data/v2ray                ${inet_uid}  ${inet_uid}  0755
