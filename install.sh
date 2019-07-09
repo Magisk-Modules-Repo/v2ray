@@ -150,12 +150,15 @@ on_install() {
   mkdir -p /data/v2ray/run
   [ -f /data/v2ray/softap.list ] || \
   echo "softap0" > /data/v2ray/softap.list
-  [ -f /data/v2ray/config.json ] || \
-  unzip -j -o "$ZIPFILE" "v2ray/etc/config.json" -d /data/v2ray >&2
   [ -f /data/v2ray/resolv.conf ] || \
   unzip -j -o "$ZIPFILE" "v2ray/etc/resolv.conf" -d /data/v2ray >&2
   unzip -j -o "$ZIPFILE" "v2ray/etc/geosite.dat" -d /data/v2ray >&2
   unzip -j -o "$ZIPFILE" "v2ray/etc/geoip.dat" -d /data/v2ray >&2
+  if [ -f /data/v2ray/config.json ] ; then
+    unzip -j -o "$ZIPFILE" "v2ray/etc/config.json" -d /data/v2ray/config.json.template >&2
+  else
+    unzip -j -o "$ZIPFILE" "v2ray/etc/config.json" -d /data/v2ray/config.json >&2
+  fi
   ln -s /data/v2ray/resolv.conf $MODPATH/system/etc/resolv.conf
 }
 
