@@ -154,7 +154,6 @@ on_install() {
   unzip -j -o "$ZIPFILE" "v2ray/etc/resolv.conf" -d /data/v2ray >&2
   unzip -j -o "$ZIPFILE" "v2ray/etc/geosite.dat" -d /data/v2ray >&2
   unzip -j -o "$ZIPFILE" "v2ray/etc/geoip.dat" -d /data/v2ray >&2
-  unzip -j -o "$ZIPFILE" "v2ray/etc/config.json" -d /data/v2ray >&2
   unzip -j -o "$ZIPFILE" "v2ray/etc/config.json" -d /data/v2ray/run >&2
   mv /data/v2ray/run/config.json /data/v2ray/config.json.template
   [ -f /data/v2ray/config.json ] || \
