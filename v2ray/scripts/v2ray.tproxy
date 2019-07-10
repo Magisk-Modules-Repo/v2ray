@@ -101,8 +101,12 @@ probe_v2ray_target() {
 
 probe_uid_app_name() {
   app_handle="$2"
-  app_name=`grep " $1 " /data/system/packages.list | cut -d ' ' -f 1`
-  app_name=`echo ${app_name} | sed 's/ / \& /g'`
+  if [ "$1" == "0" ] ; then
+    app_name="root"
+  else
+    app_name=`grep " $1 " /data/system/packages.list | cut -d ' ' -f 1`
+    app_name=`echo ${app_name} | sed 's/ / \& /g'`
+  fi
   if [ "${app_name}" != "" ] ; then
     echo "[Info]: ${app_handle} ${app_name} APP's network."
   else

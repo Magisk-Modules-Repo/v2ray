@@ -4,6 +4,8 @@ inotify=`realpath $0`
 scripts_dir=`dirname ${inotify}`
 service="${scripts_dir}/v2ray.service"
 tproxy="${scripts_dir}/v2ray.tproxy"
+dns_proxy_keeper="${scripts_dir}/v2ray-dns.keeper"
+dns_proxy_service="${scripts_dir}/v2ray-dns.service"
 
 events=$1
 monitor_dir=$2
@@ -13,11 +15,13 @@ start_v2ray() {
   ${service} start && \
   if [ -f /data/v2ray/appid.list ] || [ -f /data/v2ray/softap.list ] ; then
     ${tproxy} enable
+    [ -f "${dns_proxy_keeper}" ] && ${dns_proxy_service} start
   fi
 }
 
 stop_v2ray() {
   ${tproxy} disable
+  [ -f "${dns_proxy_keeper}" ] && ${dns_proxy_service} stop
   ${service} stop
 }
 
