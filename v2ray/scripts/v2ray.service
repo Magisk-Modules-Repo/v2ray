@@ -83,7 +83,6 @@ start_service() {
     chown -R inet:inet ${data_path}
     chown inet:inet ${bin_path}
     chmod 6755 ${bin_path}
-    echo > ${error_log}
     nohup ${bin_path} ${bin_opts} &>${error_log} &
     echo -n $! > ${pid_file}
     if wait_v2ray_listen ; then
