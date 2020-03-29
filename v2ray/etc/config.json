@@ -122,6 +122,12 @@
         "outboundTag": "direct"
       },
       {
+        // Bypass all BT steams.
+        "type": "field",
+        "protocol":["bittorrent"], 
+        "outboundTag": "direct"
+      },
+      {
         // Blocks major ads.
         "type": "field",
         "domain": ["geosite:category-ads"],
