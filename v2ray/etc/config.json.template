@@ -150,6 +150,7 @@
       "domain:shadowsocks.org": "electronicsrealm.com"
     },
     "servers": [
+      // This dns ip address must as same as the DNS proxy in this file at line 30.
       "1.1.1.1",
       {
         "address": "114.114.114.114",
