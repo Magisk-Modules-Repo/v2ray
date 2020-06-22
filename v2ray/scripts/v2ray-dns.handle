@@ -3,6 +3,8 @@
 host_ip=""
 inet_uid="3003"
 proxy_port="65534"
+conf_file="/data/v2ray/config.json"
+dns_ip=`sed -n '30p' ${conf_file} | grep -oE "([0-9]{1,3}\.){3}[0-9]{1,3}"`
 iptables_wait="iptables"
 proxy_for_app=false
 appid_file="/data/v2ray/appid.list"
@@ -111,22 +113,22 @@ proxy_app_dns_iptables() {
     ## proxy all apps network
     if [ "${appid_list[*]}" = "0" ] ; then
       echo "[Info]: Proxy all APP's DNS request."
-      ${iptables_wait} -t nat -A APP_DNS_PROXY -m owner ! --uid-owner ${inet_uid} -j V2RAY_APP_DNS
+      ${iptables_wait} -t nat -A APP_DNS_PROXY -d ${dns_ip}/32 -m owner ! --uid-owner ${inet_uid} -j V2RAY_APP_DNS
     ## proxy assign app
     else
       for appid in ${appid_list[@]}; do
         probe_uid_app_name ${appid} "Proxy" && \
-        ${iptables_wait} -t nat -A APP_DNS_PROXY -m owner --uid-owner ${appid} -j V2RAY_APP_DNS
+        ${iptables_wait} -t nat -A APP_DNS_PROXY -d ${dns_ip}/32 -m owner --uid-owner ${appid} -j V2RAY_APP_DNS
       done
     fi
   ## black-list mode
   elif [ "${app_proxy_mode}" = "skip" ] ; then
     for appid in ${appid_list[@]}; do
       probe_uid_app_name ${appid} "Ignore" && \
-      ${iptables_wait} -t nat -A APP_DNS_PROXY -m owner --uid-owner ${appid} -j RETURN
+      ${iptables_wait} -t nat -A APP_DNS_PROXY -d ${dns_ip}/32 -m owner --uid-owner ${appid} -j RETURN
     done
     echo "[Info]: Proxy all remaining APP's DNS request."
-    ${iptables_wait} -t nat -A APP_DNS_PROXY -m owner ! --uid-owner ${inet_uid} -j V2RAY_APP_DNS
+    ${iptables_wait} -t nat -A APP_DNS_PROXY -d ${dns_ip}/32 -m owner ! --uid-owner ${inet_uid} -j V2RAY_APP_DNS
   fi
   ## apply proxy rules to iptables
   ${iptables_wait} -t nat -A OUTPUT -p udp --dport 53 -j APP_DNS_PROXY
