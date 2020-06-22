@@ -11,5 +11,5 @@ start_proxy () {
 }
 if [ ! -f /data/v2ray/manual ] ; then
   start_proxy
+  inotifyd ${MODDIR}/v2ray.inotify ${MODDIR}/.. &>> /data/v2ray/run/service.log &
 fi
-inotifyd ${MODDIR}/v2ray.inotify ${MODDIR}/.. &>> /data/v2ray/run/service.log &
