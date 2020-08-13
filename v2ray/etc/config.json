@@ -5,6 +5,7 @@
   "log": {
     // By default, V2Ray writes access log to stdout.
     // "access": "/path/to/access/log/file",
+    "access": "none",
 
     // By default, V2Ray write error log to stdout.
     // "error": "/path/to/error/log/file",
@@ -18,17 +19,20 @@
     // Just listen for DNS proxy.
     "port": 65534,
 
+    // Only for lo.
+    "listen": "127.0.0.1",
+
     // Tag of the inbound for DNS proxy routing.
-    "tag": "dns-in",
+    "tag": "dns2socks",
 
-    // DNS proxy protocol must be dokodemo-door.
-    "protocol": "dokodemo-door",
+    // DNS proxy protocol should be socks.
+    "protocol": "socks",
 
-    // Setting of DNS proxy.
+    // Setting of socks5.
     "settings": {
-      "port": 53,
-      "address": "1.1.1.1",
-      "network": "tcp,udp"
+      "auth": "noauth",
+      "udp": true,
+      "ip": "127.0.0.1"
     }
   },{
     // Port to listen on. You may need root access if the value is less than 1024.
@@ -78,12 +82,6 @@
     // Tag of the outbound. May be used for routing.
     "tag": "direct"
   },{
-    // DNS Proxy Outbond
-    "protocol": "dns",
-
-    // Tag of the outbound for DNS proxy routing.
-    "tag": "dns-out"
-  },{
     "protocol": "blackhole",
     "settings": {},
     "tag": "blocked"
@@ -95,14 +93,8 @@
 
   // Routing controls how traffic from inbounds are sent to outbounds.
   "routing": {
-    "domainStrategy": "IPOnDemand",
+    "domainStrategy": "IPIfNonMatch",
     "rules":[
-      {
-        // Proxy DNS request
-        "type": "field",
-        "inboundTag": ["dns-in"],
-        "outboundTag": "dns-out"
-      },
       {
         // Bypass private IPs.
         "type": "field",
@@ -122,7 +114,7 @@
         "outboundTag": "direct"
       },
       {
-        // Bypass all BT steams.
+        // Bypass all BT streams.
         "type": "field",
         "protocol":["bittorrent"], 
         "outboundTag": "direct"
@@ -150,8 +142,11 @@
       "domain:shadowsocks.org": "electronicsrealm.com"
     },
     "servers": [
-      // This dns ip address must as same as the DNS proxy in this file at line 30.
-      "1.1.1.1",
+      {
+        // Forward to dns2socks.
+        "address": "127.0.0.1",
+        "port": 65533
+      },
       {
         "address": "114.114.114.114",
         "port": 53,

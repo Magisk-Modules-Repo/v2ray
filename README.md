@@ -6,7 +6,8 @@ This is a v2ray module for Magisk, and includes binaries for arm, arm64, x86, x6
 
 ## Included
 
-* [V2Ray core](<https://github.com/v2ray/v2ray-core>)
+* [V2Ray core](<https://github.com/v2fly/v2ray-core>)
+* [DNS2SOCKS](<https://sourceforge.net/projects/dns2socks/>)
 * [magisk-module-installer](https://github.com/topjohnwu/magisk-module-installer)
 
 - V2Ray service script and Android transparent proxy iptables script
@@ -27,6 +28,8 @@ You can download the release installer zip file and install it via the Magisk Ma
 - Please make sure the config is correct. You can check it by running a command :
 
    `export V2RAY_LOCATION_ASSET=/data/v2ray; v2ray -test -config /data/v2ray/config.json`  in android terminal or ssh.
+
+- DNS2SOCKS remote ip config file is store in `/data/v2ray/dns2socks` . V2Ray core 4.22.0+ support DoH (DNS over HTTPS), it can also help you obtain the correct DNS resolution results, so if you wanna use it to instead of dns2socks, you should edit the V2ray config to change DNS and disable socks5 proxy on port 65534, then delete the DNS2SOCKS remote ip config file.
 
 - Tips: Please notice that the default configuration has already set inbounds section to cooperate work with transparent proxy script. It is recommended that you only edit the first element of outbounds section to your proxy server and edit file `/data/v2ray/appid.list` to select which App to proxy.
 
@@ -150,10 +153,10 @@ Android system **iptables**      [ localhost inside ]
 
 ## Project V
 
-Project V is a set of network tools that help you to build your own computer network. It secures your network connections and thus protects your privacy. See [ProjectV website](https://www.v2ray.com/) for more information.
+Project V is a set of network tools that help you to build your own computer network. It secures your network connections and thus protects your privacy. See [ProjectV website](https://www.v2fly.org/) for more information.
 
 
 
 ## License
 
-[The MIT License (MIT)](https://raw.githubusercontent.com/v2ray/v2ray-core/master/LICENSE)
+[The MIT License (MIT)](https://raw.githubusercontent.com/v2fly/v2ray-core/master/LICENSE)

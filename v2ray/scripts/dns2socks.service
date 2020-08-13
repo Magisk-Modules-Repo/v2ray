@@ -1,0 +1,162 @@
+#!/system/bin/sh
+
+bin_name="dns2socks"
+bin_file="/system/bin/${bin_name}"
+run_path="/data/v2ray/run"
+pid_file="${run_path}/dns2socks.pid"
+log_file="${run_path}/dns2socks.log"
+socks_port="65534"
+dns_port="65533"
+remote_dns_ip=`cat /data/v2ray/dns2socks.conf`
+
+suit_iptables_version() {
+  iptables_version=`iptables -V | grep -o "v1\.[0-9]"`
+  if [ "${iptables_version}" = "v1.4" ] ; then
+    ## fix options for lower version iptables
+    export ANDROID_DATA=/data
+    export ANDROID_ROOT=/system
+    iptables_wait="iptables -w"
+  elif [ "${iptables_version}" = "v1.6" ] || [ "${iptables_version}" = "v1.8" ] ; then
+    iptables_wait="iptables -w 100"
+  else
+    iptables_wait="echo iptables"
+  fi
+}
+
+find_netstat_path() {
+  [ -f /system/bin/netstat ] && alias netstat="/system/bin/netstat" && return 0
+  [ -f /system/xbin/netstat ] && alias netstat="/system/xbin/netstat" && return 0
+  return 1
+}
+
+probe_dns2socks_alive() {
+  [ -f ${pid_file} ] && cmd_file="/proc/`cat ${pid_file}`/cmdline" || return 1
+  [ -f ${cmd_file} ] && grep -q "dns2socks" ${cmd_file} && return 0 || return 1
+}
+
+probe_v2ray_listen() {
+  find_netstat_path || return
+  v2ray_listen=`netstat -unlp | grep v2ray`
+  if eval "echo \"${v2ray_listen}\" | grep -q :::${socks_port}" || eval "echo \"${v2ray_listen}\" | grep -q 127.0.0.1:${socks_port}" ; then
+    return 0
+  else
+    return 1
+  fi
+}
+
+display_dns2socks_pid() {
+  if probe_dns2socks_alive ; then
+    echo "[Info]: ${bin_name} service is running. ( PID: `cat ${pid_file}` )"
+    return 0
+  else
+    echo "[Info]: ${bin_name} service is stopped."
+    return 1
+  fi
+}
+
+flush_filter_iptables() {
+  iptables_chains=`iptables-save -t filter | cut -d ' ' -f 1 | tr "\n" " "`
+  if eval "echo \"${iptables_chains}\" | grep -q \":PROTECT_V2RAY_SOCKS \"" ; then
+    echo "[Info]: Clean filter socks5 proxy iptables rules."
+    ${iptables_wait} -t filter -D INPUT -j PROTECT_V2RAY_SOCKS
+    ${iptables_wait} -t filter -F PROTECT_V2RAY_SOCKS
+    ${iptables_wait} -t filter -X PROTECT_V2RAY_SOCKS
+  fi
+  if eval "echo \"${iptables_chains}\" | grep -q \":PROTECT_DNS2SOCKS \"" ; then
+    echo "[Info]: Clean filter dns2socks proxy iptables rules."
+    ${iptables_wait} -t filter -D INPUT -j PROTECT_DNS2SOCKS
+    ${iptables_wait} -t filter -F PROTECT_DNS2SOCKS
+    ${iptables_wait} -t filter -X PROTECT_DNS2SOCKS
+  fi
+  unset iptables_chains
+}
+
+filter_socks5_iptables() {
+  if ${v2ray_share} ; then
+    echo "[Info]: Block illegal socks5 visit."
+    ## create iptables firewall chains
+    ${iptables_wait} -t filter -N PROTECT_V2RAY_SOCKS
+    ## permit localhost
+    ${iptables_wait} -t filter -A PROTECT_V2RAY_SOCKS -i lo -j RETURN
+    ## deny all other visit
+    ${iptables_wait} -t filter -A PROTECT_V2RAY_SOCKS -p tcp --dport ${socks_port} -j DROP
+    ${iptables_wait} -t filter -A PROTECT_V2RAY_SOCKS -p udp --dport ${socks_port} -j DROP
+    ## apply to iptables
+    ${iptables_wait} -t filter -A INPUT -j PROTECT_V2RAY_SOCKS
+  fi
+}
+
+filter_dns_iptables() {
+  if ${v2ray_share} ; then
+    echo "[Info]: Block illegal dns2socks visit."
+    ## create iptables firewall chains
+    ${iptables_wait} -t filter -N PROTECT_DNS2SOCKS
+    ## permit localhost
+    ${iptables_wait} -t filter -A PROTECT_DNS2SOCKS -i lo -j RETURN
+    ## deny all other visit
+    ${iptables_wait} -t filter -A PROTECT_DNS2SOCKS -p tcp --dport ${dns_port} -j DROP
+    ${iptables_wait} -t filter -A PROTECT_DNS2SOCKS -p udp --dport ${dns_port} -j DROP
+    ## apply to iptables
+    ${iptables_wait} -t filter -A INPUT -j PROTECT_DNS2SOCKS
+  fi
+}
+
+start_service() {
+  if probe_dns2socks_alive ; then
+    echo "[Info]: ${bin_name} service is running. ( PID: `cat ${pid_file}` )"
+    return 0
+  elif probe_v2ray_listen ; then
+    echo "[Info]: Starting ${bin_name} service."
+    mkdir -p ${run_path}
+    chmod 6755 ${bin_file}
+    nohup ${bin_file} 127.0.0.1:${socks_port} ${remote_dns_ip} 127.0.0.1:${dns_port} &>${log_file} &
+    sleep 1
+    echo -n $! > ${pid_file}
+    if probe_dns2socks_alive ; then
+      echo "[Info]: ${bin_name} service is running. ( PID: `cat ${pid_file}` )"
+      filter_socks5_iptables
+      filter_dns_iptables
+      return 0
+    else
+      echo "[Error]: Start ${bin_name} service Failed."
+      rm -f ${pid_file}
+      return 1
+    fi
+  else
+    echo "[Error]: V2Ray service is not listening on port ${socks_port} for DNS proxy."
+    exit 1
+    return 2
+  fi
+}
+
+stop_service() {
+  if display_dns2socks_pid ; then
+    echo "[Info]: Stopping ${bin_name} service."
+    kill `cat ${pid_file}`
+    sleep 1
+    flush_filter_iptables
+    display_dns2socks_pid
+  fi
+  rm -f ${pid_file}
+}
+
+suit_iptables_version
+
+case "$1" in
+  start)
+    start_service
+    ;;
+  stop)
+    stop_service
+    ;;
+  restart)
+    stop_service
+    start_service
+    ;;
+  status)
+    display_dns2socks_pid
+    ;;
+  *)
+    echo "$0:  usage:  $0 {start|stop|restart|status}"
+    ;;
+esac
