@@ -36,9 +36,11 @@
       "followRedirect": true
     },
 
-    // Disable sniffing.
+    // If you wanna bypass BT streams, you should enable it.
     "sniffing": {
       "enabled": false
+    //  ,
+    //  "destOverride": ["http", "tls"]
     }
   }],
   // List of outbound proxy configurations.
@@ -86,6 +88,35 @@
         "ip": ["geoip:cn"],
         "outboundTag": "direct"
       }
+      //,
+      //{
+        // Bypass all china sites.
+      //  "type": "field",
+      //  "domain": ["geosite:cn"],
+      //  "outboundTag": "direct"
+      //},
+      //{
+        // To bypass all BT streams, you should enable sniffing.
+      //  "type": "field",
+      //  "protocol":["bittorrent"], 
+      //  "outboundTag": "direct"
+      //},
+      //{
+        // If your network condition not very well, you could bypass dnscrypt-proxy's upstream DNS.
+      //  "type": "field",
+      //  "domain": [
+      //    "cloudflare-dns.com",
+      //    "doh.opendns.com",
+      //    "dns.google"
+      //  ],
+      //  "outboundTag": "direct"
+      //},
+      //{
+        // Blocks major ads.
+      //  "type": "field",
+      //  "domain": ["geosite:category-ads"],
+      //  "outboundTag": "blocked"
+      //}
     ]
   },
 
