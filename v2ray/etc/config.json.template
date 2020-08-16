@@ -5,6 +5,7 @@
   "log": {
     // By default, V2Ray writes access log to stdout.
     // "access": "/path/to/access/log/file",
+    "access": "none",
 
     // By default, V2Ray write error log to stdout.
     // "error": "/path/to/error/log/file",
@@ -15,22 +16,6 @@
   },
   // List of inbound proxy configurations.
   "inbounds": [{
-    // Just listen for DNS proxy.
-    "port": 65534,
-
-    // Tag of the inbound for DNS proxy routing.
-    "tag": "dns-in",
-
-    // DNS proxy protocol must be dokodemo-door.
-    "protocol": "dokodemo-door",
-
-    // Setting of DNS proxy.
-    "settings": {
-      "port": 53,
-      "address": "1.1.1.1",
-      "network": "tcp,udp"
-    }
-  },{
     // Port to listen on. You may need root access if the value is less than 1024.
     "port": 65535,
 
@@ -51,11 +36,9 @@
       "followRedirect": true
     },
 
-    // Enable sniffing on TCP connection.
+    // Disable sniffing.
     "sniffing": {
-      "enabled": true,
-      // Target domain will be overriden to the one carried by the connection, if the connection is HTTP or HTTPS.
-      "destOverride": ["http", "tls"]
+      "enabled": false
     }
   }],
   // List of outbound proxy configurations.
@@ -78,12 +61,6 @@
     // Tag of the outbound. May be used for routing.
     "tag": "direct"
   },{
-    // DNS Proxy Outbond
-    "protocol": "dns",
-
-    // Tag of the outbound for DNS proxy routing.
-    "tag": "dns-out"
-  },{
     "protocol": "blackhole",
     "settings": {},
     "tag": "blocked"
@@ -95,14 +72,8 @@
 
   // Routing controls how traffic from inbounds are sent to outbounds.
   "routing": {
-    "domainStrategy": "IPOnDemand",
+    "domainStrategy": "AsIs",
     "rules":[
-      {
-        // Proxy DNS request
-        "type": "field",
-        "inboundTag": ["dns-in"],
-        "outboundTag": "dns-out"
-      },
       {
         // Bypass private IPs.
         "type": "field",
@@ -114,53 +85,7 @@
         "type": "field",
         "ip": ["geoip:cn"],
         "outboundTag": "direct"
-      },
-      {
-        // Bypass all china sites.
-        "type": "field",
-        "domain": ["geosite:cn"],
-        "outboundTag": "direct"
-      },
-      {
-        // Bypass all BT steams.
-        "type": "field",
-        "protocol":["bittorrent"], 
-        "outboundTag": "direct"
-      },
-      {
-        // Blocks major ads.
-        "type": "field",
-        "domain": ["geosite:category-ads"],
-        "outboundTag": "blocked"
       }
-    ]
-  },
-
-  // Dns settings for domain resolution.
-  "dns": {
-    // Static hosts, similar to hosts file.
-    "hosts": {
-      // Match v2ray.com to another domain on CloudFlare. This domain will be used when querying IPs for v2ray.com.
-      "domain:v2ray.com": "www.vicemc.net",
-
-      // The following settings help to eliminate DNS poisoning in mainland China.
-      // It is safe to comment these out if this is not the case for you.
-      "domain:github.io": "pages.github.com",
-      "domain:wikipedia.org": "www.wikimedia.org",
-      "domain:shadowsocks.org": "electronicsrealm.com"
-    },
-    "servers": [
-      // This dns ip address must as same as the DNS proxy in this file at line 30.
-      "1.1.1.1",
-      {
-        "address": "114.114.114.114",
-        "port": 53,
-        // List of domains that use this DNS first.
-        "domains": [
-          "geosite:cn"
-        ]
-      },
-      "localhost"
     ]
   },
 
