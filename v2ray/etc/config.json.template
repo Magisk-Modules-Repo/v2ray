@@ -39,8 +39,8 @@
     // If you wanna bypass BT streams, you should enable it.
     "sniffing": {
       "enabled": false
-    //  ,
-    //  "destOverride": ["http", "tls"]
+      ,
+      "destOverride": ["http", "tls"]
     }
   }],
   // List of outbound proxy configurations.
