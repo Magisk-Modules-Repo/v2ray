@@ -38,7 +38,7 @@
 
     // If you wanna bypass BT streams, you should enable it.
     "sniffing": {
-      "enabled": false
+      "enabled": true
       ,
       "destOverride": ["http", "tls"]
     }
