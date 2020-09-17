@@ -1,5 +1,6 @@
 #!/system/bin/sh
 
+dnsmasq_uid="1052"
 bin_name="dnscrypt-proxy"
 bin_file="/system/bin/${bin_name}"
 run_path="/data/v2ray/run"
@@ -7,15 +8,11 @@ pid_file="${run_path}/dnscrypt-proxy.pid"
 conf_path="/data/v2ray/dnscrypt-proxy"
 conf_file="${conf_path}/dnscrypt-proxy.toml"
 bin_opts="-config ${conf_file}"
-appid_file="/data/v2ray/appid.list"
-appid_list=()
-softap_file="/data/v2ray/softap.list"
-softap_list=()
 iptables_wait="iptables"
 v2ray_share=false
-proxy_for_app=false
-inet_uid="3003"
-host_ip="127.0.0.1"
+softap_file="/data/v2ray/softap.list"
+appid_list=()
+proxy_for_guest=false
 dns_port="65534"
 proxy_port="65535"
 
@@ -39,15 +36,6 @@ find_netstat_path() {
   return 1
 }
 
-iptables_chain_exist() {
-	local chain_list="$1"
-	local target_chain="$2"
-	if `echo "${chain_list}" | grep -q ":${target_chain} "` ; then 
-		return 0
-	fi
-	return 1
-}
-
 probe_dnscrypt-proxy_alive() {
   [ -f ${pid_file} ] && cmd_file="/proc/`cat ${pid_file}`/cmdline" || return 1
   [ -f ${cmd_file} ] && grep -q "dnscrypt-proxy" ${cmd_file} && return 0 || return 1
@@ -64,102 +52,26 @@ probe_v2ray_listen() {
   fi
 }
 
-probe_v2ray_target() {
+check_proxy_guest() {
   ## add eof to appid and softap file
-  echo "" >> "${appid_file}"
-  ## trim empty line in appid and softap file
-  sed -i '/^$/d' "${appid_file}"
-  ## probe proxy app
-  if [ -f ${appid_file} ] ; then
-    ## check appid_file is white-list or black-list
-    if head -1 "${appid_file}" | grep -q 'bypass' ; then
-      app_proxy_mode="skip"
-    else
-      app_proxy_mode="pick"
-    fi
-    ## filter appid number
-    while read appid_line ; do
-      appid_text=(`echo ${appid_line}`)
-      for appid_word in ${appid_text[*]} ; do
-        if echo "${appid_word}" | grep -q '#' ; then
-          break
-        elif [ "${appid_word}" -ge 0 ] 2>/dev/null ; then
-          appid_list=(${appid_list[*]} ${appid_word})
-        fi
-      done
-    done < ${appid_file}
-  fi
+  echo "" >> "${softap_file}"
+  ## trim empty line in softap file
+  sed -i '/^$/d' "${softap_file}"
   ## probe proxy wifi interface
   ${v2ray_share} && [ -f ${softap_file} ] && softap_list=(`cat ${softap_file}`) || unset softap_list
-  ## check proxy app or not
-  if ( [ "${app_proxy_mode}" = "skip" ] || ( [ "${app_proxy_mode}" = "pick" ] && [ ${#appid_list[@]} -gt 0 ] ) ) ; then
-    proxy_for_app=true
-  fi
-  ## check enable proxy iptables or not
-  if ! ( ${proxy_for_app} ) ; then
-    echo "[Error]: DNS is not proxy for APP."
-    exit 1
-  fi
-}
-
-probe_uid_app_name() {
-  app_handle="$2"
-  if [ "$1" == "0" ] ; then
-  	app_name="root"
-  else
-  	app_name=`grep " $1 " /data/system/packages.list | cut -d ' ' -f 1`
-  	app_name=`echo ${app_name} | sed 's/ / \& /g'`
-  fi
-  if [ "${app_name}" != "" ] ; then
-    echo "[Info]: ${app_handle} ${app_name} APP's DNS request."
-  else
-    echo "[Warning]: APP with uid=$1 is not found."
-    return 1
-  fi
-}
-
-proxy_app_dns_iptables() {
-  ## create iptables proxy chains for app tcp
-  ${iptables_wait} -t nat -N APP_DNS_PROXY
-  ## bypass v2ray program
-  ${iptables_wait} -t nat -A APP_DNS_PROXY -m owner --uid-owner ${inet_uid} -j RETURN
-  ## white-list mode
-  if [ "${app_proxy_mode}" = "pick" ] ; then
-    ## proxy all apps network
-    if [ "${appid_list[*]}" = "0" ] ; then
-      echo "[Info]: Proxy all APP's DNS request."
-      ${iptables_wait} -t nat -A APP_DNS_PROXY -m owner ! --uid-owner ${inet_uid} -j V2RAY_APP_DNS
-    ## proxy assign app
-    else
-      for appid in ${appid_list[@]}; do
-        probe_uid_app_name ${appid} "Proxy" && \
-        ${iptables_wait} -t nat -A APP_DNS_PROXY -m owner --uid-owner ${appid} -j V2RAY_APP_DNS
-      done
-    fi
-  ## black-list mode
-  elif [ "${app_proxy_mode}" = "skip" ] ; then
-    for appid in ${appid_list[@]}; do
-      probe_uid_app_name ${appid} "Ignore" && \
-      ${iptables_wait} -t nat -A APP_DNS_PROXY -m owner --uid-owner ${appid} -j RETURN
-    done
-    echo "[Info]: Proxy all remaining APP's DNS request."
-    ${iptables_wait} -t nat -A APP_DNS_PROXY -m owner ! --uid-owner ${inet_uid} -j V2RAY_APP_DNS
-  fi
-  ## apply proxy rules to iptables
-  ${iptables_wait} -t nat -A APP_DNS_PROXY -m owner --uid-owner 0 -j V2RAY_APP_DNS
-  ${iptables_wait} -t nat -A OUTPUT -p udp --dport 53 -j APP_DNS_PROXY
+  ## check proxy wifi guest or not
+  [ ${#softap_list[@]} -gt 0 ] && proxy_for_guest=true
 }
 
 create_proxy_iptables() {
-	echo "[Info]: Create DNS proxy chains."
-  ## create iptables proxy chains for dns
-	${iptables_wait} -t nat -N V2RAY_APP_DNS
-  ## build basic iptables proxy chains
-  ${iptables_wait} -t nat -A V2RAY_APP_DNS -p udp -j DNAT --to-destination ${host_ip}:${dns_port}
-  if ! iptables_chain_exist "${iptables_chains}" "APP_DNS_PROXY" && ${proxy_for_app} ; then
-	  ## proxy app network
-	  proxy_app_dns_iptables
-	fi
+	echo "[Info]: Proxy local system's DNS request."
+  ${iptables_wait} -t nat -I OUTPUT -p udp -m owner --uid-owner 0 --dport 53 -j REDIRECT --to-ports ${dns_port}
+  ## proxy wifi guest DNS
+  check_proxy_guest && \
+  if ${proxy_for_guest} ; then
+    echo "[Info]: Proxy dnsmasq's DNS request."
+    ${iptables_wait} -t nat -I OUTPUT -p udp -m owner --uid-owner ${dnsmasq_uid} --dport 53 -j REDIRECT --to-ports ${dns_port}
+  fi
 }
 
 display_dnscrypt-proxy_pid() {
@@ -172,23 +84,10 @@ display_dnscrypt-proxy_pid() {
   fi
 }
 
-flush_endpoint_iptables() {
-  ${iptables_wait} -t nat -F V2RAY_APP_DNS 2>/dev/null
-}
-
-flush_nat_iptables() {
-  echo "[Info]: Clean nat proxy iptables rules."
-  local iptables_chains=`iptables-save -t nat | cut -d ' ' -f 1 | tr "\n" " " | grep -o ":[0-9A-Z_]* "`
-  ${iptables_wait} -t nat -D OUTPUT -p udp --dport 53 -j APP_DNS_PROXY 2>/dev/null
-  if iptables_chain_exist "${iptables_chains}" "APP_DNS_PROXY" ; then
-    ${iptables_wait} -t nat -F APP_DNS_PROXY
-    ${iptables_wait} -t nat -X APP_DNS_PROXY
-  fi
-  if iptables_chain_exist "${iptables_chains}" "V2RAY_APP_DNS" ; then
-    ${iptables_wait} -t nat -F V2RAY_APP_DNS
-    ${iptables_wait} -t nat -X V2RAY_APP_DNS
-  fi
-  unset iptables_chains
+flush_dns_iptables() {
+  echo "[Info]: Clean DNS proxy iptables rules."
+  ${iptables_wait} -t nat -D OUTPUT -p udp -m owner --uid-owner 0 --dport 53 -j REDIRECT --to-ports ${dns_port} 2>/dev/null
+  ${iptables_wait} -t nat -D OUTPUT -p udp -m owner --uid-owner ${dnsmasq_uid} --dport 53 -j REDIRECT --to-ports ${dns_port} 2>/dev/null
 }
 
 start_dnscrypt-proxy() {
@@ -198,6 +97,8 @@ start_dnscrypt-proxy() {
   elif probe_v2ray_listen ; then
     echo "[Info]: Starting ${bin_name} service."
     mkdir -p ${run_path}
+    echo -n "" > ${conf_path}/dnscrypt-nxdomain.log
+    echo -n "" > ${conf_path}/dnscrypt-query.log
     chmod 6755 ${bin_file}
     nohup ${bin_file} ${bin_opts} &
     sleep 1
@@ -231,15 +132,10 @@ suit_iptables_version
 
 case "$1" in
   enable)
-    if start_dnscrypt-proxy ; then
-      flush_endpoint_iptables
-      probe_v2ray_target
-      sleep 2
-      create_proxy_iptables
-    fi
+    start_dnscrypt-proxy && create_proxy_iptables
     ;;
   disable)
-    flush_nat_iptables
+    flush_dns_iptables
     stop_dnscrypt-proxy
     ;;
   status)

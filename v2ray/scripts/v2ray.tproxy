@@ -15,7 +15,7 @@ softap_list=()
 v2ray_share=false
 proxy_for_app=false
 proxy_for_guest=false
-intranet=(0.0.0.0/8 10.0.0.0/8 127.0.0.0/8 169.254.0.0/16 172.16.0.0/12 192.168.0.0/16 224.0.0.0/4 240.0.0.0/4)
+intranet=(0.0.0.0/8 127.0.0.0/8 169.254.0.0/16 172.16.0.0/12 224.0.0.0/4 240.0.0.0/4)
 
 suit_iptables_version() {
   iptables_version=`iptables -V | grep -o "v1\.[0-9]"`
@@ -184,7 +184,7 @@ proxy_guest_tcp_iptables() {
   ## proxy assign softap
   for softap in ${softap_list[@]}; do
     echo "[Info]: Proxy ${softap} WiFi guest's TCP network."
-    ${iptables_wait} -t nat -A GUEST_TCP_PROXY -i ${softap} -j V2RAY
+    ${iptables_wait} -t nat -A GUEST_TCP_PROXY -s ${softap} -j V2RAY
   done
   ${iptables_wait} -t nat -A PREROUTING -p tcp -j GUEST_TCP_PROXY
 }
@@ -218,7 +218,7 @@ filter_proxy_iptables() {
     ${iptables_wait} -t filter -A PROTECT_V2RAY -i lo -j RETURN
     ## permit assign softap
     for softap in ${softap_list[@]}; do
-      ${iptables_wait} -t filter -A PROTECT_V2RAY -i ${softap} -j RETURN
+      ${iptables_wait} -t filter -A PROTECT_V2RAY -s ${softap} -j RETURN
     done
     ## deny all other visit
     ${iptables_wait} -t filter -A PROTECT_V2RAY -p tcp --dport ${proxy_port} -j DROP

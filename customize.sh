@@ -55,7 +55,7 @@ rm "${download_v2ray_zip}"
 # copy v2ray data and config
 ui_print "- Copy V2Ray config and data files"
 [ -f /data/v2ray/softap.list ] || \
-echo "softap0" > /data/v2ray/softap.list
+echo "192.168.43.0/24" > /data/v2ray/softap.list
 [ -f /data/v2ray/resolv.conf ] || \
 unzip -j -o "${ZIPFILE}" "v2ray/etc/resolv.conf" -d /data/v2ray >&2
 unzip -j -o "${ZIPFILE}" "v2ray/etc/config.json.template" -d /data/v2ray >&2
@@ -85,7 +85,7 @@ echo "id=v2ray" > $MODPATH/module.prop
 echo "name=V2ray for Android" >> $MODPATH/module.prop
 echo -n "version=" >> $MODPATH/module.prop
 echo ${latest_v2ray_version} >> $MODPATH/module.prop
-echo "versionCode=20200815" >> $MODPATH/module.prop
+echo "versionCode=20200917" >> $MODPATH/module.prop
 echo "author=chendefine" >> $MODPATH/module.prop
 echo "description=V2ray core with service scripts for Android" >> $MODPATH/module.prop
 
