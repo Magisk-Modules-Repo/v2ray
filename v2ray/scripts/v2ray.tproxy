@@ -183,7 +183,7 @@ proxy_guest_tcp_iptables() {
   ${iptables_wait} -t nat -N GUEST_TCP_PROXY
   ## proxy assign softap
   for softap in ${softap_list[@]}; do
-    echo "[Info]: Proxy ${softap} WiFi guest's TCP network."
+    echo "[Info]: Proxy ${softap} guest's TCP network."
     ${iptables_wait} -t nat -A GUEST_TCP_PROXY -s ${softap} -j V2RAY
   done
   ${iptables_wait} -t nat -A PREROUTING -p tcp -j GUEST_TCP_PROXY
