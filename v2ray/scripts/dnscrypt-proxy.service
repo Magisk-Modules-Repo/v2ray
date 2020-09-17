@@ -13,6 +13,7 @@ v2ray_share=false
 softap_file="/data/v2ray/softap.list"
 appid_list=()
 proxy_for_guest=false
+host_ip="127.0.0.1"
 dns_port="65534"
 proxy_port="65535"
 
@@ -64,13 +65,13 @@ check_proxy_guest() {
 }
 
 create_proxy_iptables() {
-	echo "[Info]: Proxy local system's DNS request."
-  ${iptables_wait} -t nat -I OUTPUT -p udp -m owner --uid-owner 0 --dport 53 -j REDIRECT --to-ports ${dns_port}
+  echo "[Info]: Proxy local system's DNS request."
+  ${iptables_wait} -t nat -A OUTPUT -p udp -m owner --uid-owner 0 --dport 53 -j DNAT --to-destination ${host_ip}:${dns_port}
   ## proxy wifi guest DNS
   check_proxy_guest && \
   if ${proxy_for_guest} ; then
     echo "[Info]: Proxy dnsmasq's DNS request."
-    ${iptables_wait} -t nat -I OUTPUT -p udp -m owner --uid-owner ${dnsmasq_uid} --dport 53 -j REDIRECT --to-ports ${dns_port}
+    ${iptables_wait} -t nat -A OUTPUT -p udp -m owner --uid-owner ${dnsmasq_uid} --dport 53 -j DNAT --to-destination ${host_ip}:${dns_port}
   fi
 }
 
@@ -86,8 +87,8 @@ display_dnscrypt-proxy_pid() {
 
 flush_dns_iptables() {
   echo "[Info]: Clean DNS proxy iptables rules."
-  ${iptables_wait} -t nat -D OUTPUT -p udp -m owner --uid-owner 0 --dport 53 -j REDIRECT --to-ports ${dns_port} 2>/dev/null
-  ${iptables_wait} -t nat -D OUTPUT -p udp -m owner --uid-owner ${dnsmasq_uid} --dport 53 -j REDIRECT --to-ports ${dns_port} 2>/dev/null
+  ${iptables_wait} -t nat -D OUTPUT -p udp -m owner --uid-owner 0 --dport 53 -j DNAT --to-destination ${host_ip}:${dns_port} 2>/dev/null
+  ${iptables_wait} -t nat -D OUTPUT -p udp -m owner --uid-owner ${dnsmasq_uid} --dport 53 -j DNAT --to-destination ${host_ip}:${dns_port} 2>/dev/null
 }
 
 start_dnscrypt-proxy() {
