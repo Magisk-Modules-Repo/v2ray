@@ -2,6 +2,7 @@
 
 route_id="1130"
 inet_uid="3003"
+net_raw_uid="3004"
 route_name="v2ray"
 proxy_port="65535"
 proxy_mark="0x20151130"
@@ -15,7 +16,7 @@ softap_list=()
 v2ray_share=false
 proxy_for_app=false
 proxy_for_guest=false
-intranet=(0.0.0.0/8 10.0.0.0/8 127.0.0.0/8 169.254.0.0/16 172.16.0.0/12 192.168.0.0/16 224.0.0.0/4 240.0.0.0/4)
+intranet=(0.0.0.0/8 127.0.0.0/8 169.254.0.0/16 172.16.0.0/12 224.0.0.0/4 240.0.0.0/4)
 
 suit_iptables_version() {
   iptables_version=`iptables -V | grep -o "v1\.[0-9]"`
@@ -163,6 +164,7 @@ proxy_app_tcp_iptables() {
         probe_uid_app_name ${appid} "Proxy" && \
         ${iptables_wait} -t nat -A APP_TCP_PROXY -m owner --uid-owner ${appid} -j V2RAY
       done
+      ${iptables_wait} -t nat -A APP_TCP_PROXY -m owner --uid-owner ${net_raw_uid} -j V2RAY
     fi
   ## black-list mode
   elif [ "${app_proxy_mode}" = "skip" ] ; then
@@ -174,7 +176,6 @@ proxy_app_tcp_iptables() {
     ${iptables_wait} -t nat -A APP_TCP_PROXY -m owner ! --uid-owner ${inet_uid} -j V2RAY
   fi
   ## apply proxy rules to iptables
-  ${iptables_wait} -t nat -A APP_TCP_PROXY -m owner --uid-owner 0 -j V2RAY
   ${iptables_wait} -t nat -A OUTPUT -p tcp -j APP_TCP_PROXY
 }
 
@@ -183,8 +184,8 @@ proxy_guest_tcp_iptables() {
   ${iptables_wait} -t nat -N GUEST_TCP_PROXY
   ## proxy assign softap
   for softap in ${softap_list[@]}; do
-    echo "[Info]: Proxy ${softap} WiFi guest's TCP network."
-    ${iptables_wait} -t nat -A GUEST_TCP_PROXY -i ${softap} -j V2RAY
+    echo "[Info]: Proxy ${softap} guest's TCP network."
+    ${iptables_wait} -t nat -A GUEST_TCP_PROXY -s ${softap} -j V2RAY
   done
   ${iptables_wait} -t nat -A PREROUTING -p tcp -j GUEST_TCP_PROXY
 }
@@ -218,7 +219,7 @@ filter_proxy_iptables() {
     ${iptables_wait} -t filter -A PROTECT_V2RAY -i lo -j RETURN
     ## permit assign softap
     for softap in ${softap_list[@]}; do
-      ${iptables_wait} -t filter -A PROTECT_V2RAY -i ${softap} -j RETURN
+      ${iptables_wait} -t filter -A PROTECT_V2RAY -s ${softap} -j RETURN
     done
     ## deny all other visit
     ${iptables_wait} -t filter -A PROTECT_V2RAY -p tcp --dport ${proxy_port} -j DROP

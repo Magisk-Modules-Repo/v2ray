@@ -17,6 +17,13 @@ start_v2ray() {
   if [ -f /data/v2ray/appid.list ] || [ -f /data/v2ray/softap.list ] ; then
     ${tproxy} enable
     [ -f "${dnscrypt_conf}" ] && ${dns_proxy_service} enable
+    settings put global airplane_mode_on 1
+    sleep 1
+    am broadcast -a android.intent.action.AIRPLANE_MODE
+    sleep 1
+    settings put global airplane_mode_on 0
+    sleep 1
+    am broadcast -a android.intent.action.AIRPLANE_MODE
   fi
 }
 

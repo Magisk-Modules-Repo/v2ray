@@ -45,7 +45,7 @@
   }],
   // List of outbound proxy configurations.
   "outbounds": [{
-    // Replace your proxy protocol in this section, like: vmess or shadowsocks
+    // Replace your proxy protocol in this section, like: VMESS, VLESS or Shadowsocks
     "protocol": "freedom",
 
     // Settings of the protocol. Varies based on protocol.
