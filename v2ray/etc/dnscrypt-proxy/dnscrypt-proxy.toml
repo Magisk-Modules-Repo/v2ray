@@ -3,7 +3,7 @@
 ##################################
 listen_addresses = ['127.0.0.1:65534']
 max_clients = 250
-# user_name = 'nobody'
+# user_name = 'net_raw'
 ipv4_servers = true
 ipv6_servers = false
 dnscrypt_servers = false
