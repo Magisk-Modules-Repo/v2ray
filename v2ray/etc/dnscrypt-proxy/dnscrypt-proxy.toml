@@ -28,6 +28,7 @@ cert_refresh_delay = 240
 dnscrypt_ephemeral_keys = false
 tls_disable_session_tickets = false
 tls_cipher_suite = [52392, 49199]
+server_names = ['google','cloudflare']
 fallback_resolver = '202.141.162.123:53'
 ignore_system_dns = false
 netprobe_timeout = 60
