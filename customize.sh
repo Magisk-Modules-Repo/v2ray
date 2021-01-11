@@ -26,7 +26,7 @@ case "${ARCH}" in
     download_v2ray_link="${official_v2ray_link}/download/${latest_v2ray_version}/v2ray-linux-arm32-v7a.zip"
     ;;
   arm64)
-    download_v2ray_link="${official_v2ray_link}/download/${latest_v2ray_version}/v2ray-linux-arm64-v8a.zip"
+    download_v2ray_link="${official_v2ray_link}/download/${latest_v2ray_version}/v2ray-android-arm64-v8a.zip"
     ;;
   x86)
     download_v2ray_link="${official_v2ray_link}/download/${latest_v2ray_version}/v2ray-linux-32.zip"
