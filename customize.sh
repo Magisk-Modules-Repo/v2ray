@@ -26,7 +26,7 @@ case "${ARCH}" in
     download_v2ray_link="${official_v2ray_link}/download/${latest_v2ray_version}/v2ray-linux-arm32-v7a.zip"
     ;;
   arm64)
-    download_v2ray_link="${official_v2ray_link}/download/${latest_v2ray_version}/v2ray-linux-arm64-v8a.zip"
+    download_v2ray_link="${official_v2ray_link}/download/${latest_v2ray_version}/v2ray-android-arm64-v8a.zip"
     ;;
   x86)
     download_v2ray_link="${official_v2ray_link}/download/${latest_v2ray_version}/v2ray-linux-32.zip"
@@ -59,21 +59,6 @@ echo "192.168.43.0/24" > /data/v2ray/softap.list
 [ -f /data/v2ray/resolv.conf ] || \
 unzip -j -o "${ZIPFILE}" "v2ray/etc/resolv.conf" -d /data/v2ray >&2
 unzip -j -o "${ZIPFILE}" "v2ray/etc/config.json.template" -d /data/v2ray >&2
-[ -f /data/v2ray/dnscrypt-proxy/dnscrypt-blacklist-domains.txt ] || \
-unzip -j -o "${ZIPFILE}" 'v2ray/etc/dnscrypt-proxy/dnscrypt-blacklist-domains.txt' -d /data/v2ray/dnscrypt-proxy >&2
-[ -f /data/v2ray/dnscrypt-proxy/dnscrypt-blacklist-ips.txt ] || \
-unzip -j -o "${ZIPFILE}" 'v2ray/etc/dnscrypt-proxy/dnscrypt-blacklist-ips.txt' -d /data/v2ray/dnscrypt-proxy >&2
-[ -f /data/v2ray/dnscrypt-proxy/dnscrypt-cloaking-rules.txt ] || \
-unzip -j -o "${ZIPFILE}" 'v2ray/etc/dnscrypt-proxy/dnscrypt-cloaking-rules.txt' -d /data/v2ray/dnscrypt-proxy >&2
-[ -f /data/v2ray/dnscrypt-proxy/dnscrypt-forwarding-rules.txt ] || \
-unzip -j -o "${ZIPFILE}" 'v2ray/etc/dnscrypt-proxy/dnscrypt-forwarding-rules.txt' -d /data/v2ray/dnscrypt-proxy >&2
-[ -f /data/v2ray/dnscrypt-proxy/dnscrypt-proxy.toml ] || \
-unzip -j -o "${ZIPFILE}" 'v2ray/etc/dnscrypt-proxy/dnscrypt-proxy.toml' -d /data/v2ray/dnscrypt-proxy >&2
-[ -f /data/v2ray/dnscrypt-proxy/dnscrypt-whitelist.txt ] || \
-unzip -j -o "${ZIPFILE}" 'v2ray/etc/dnscrypt-proxy/dnscrypt-whitelist.txt' -d /data/v2ray/dnscrypt-proxy >&2
-[ -f /data/v2ray/dnscrypt-proxy/example-dnscrypt-proxy.toml ] || \
-unzip -j -o "${ZIPFILE}" 'v2ray/etc/dnscrypt-proxy/example-dnscrypt-proxy.toml' -d /data/v2ray/dnscrypt-proxy >&2
-unzip -j -o "${ZIPFILE}" 'v2ray/etc/dnscrypt-proxy/update-rules.sh' -d /data/v2ray/dnscrypt-proxy >&2
 [ -f /data/v2ray/config.json ] || \
 cp /data/v2ray/config.json.template /data/v2ray/config.json
 ln -s /data/v2ray/resolv.conf $MODPATH/system/etc/resolv.conf
@@ -85,7 +70,7 @@ echo "id=v2ray" > $MODPATH/module.prop
 echo "name=V2ray for Android" >> $MODPATH/module.prop
 echo -n "version=" >> $MODPATH/module.prop
 echo ${latest_v2ray_version} >> $MODPATH/module.prop
-echo "versionCode=20200918" >> $MODPATH/module.prop
+echo "versionCode=20210801" >> $MODPATH/module.prop
 echo "author=chendefine" >> $MODPATH/module.prop
 echo "description=V2ray core with service scripts for Android" >> $MODPATH/module.prop
 
@@ -98,8 +83,6 @@ set_perm  $MODPATH/scripts/start.sh    0  0  0755
 set_perm  $MODPATH/scripts/v2ray.inotify    0  0  0755
 set_perm  $MODPATH/scripts/v2ray.service    0  0  0755
 set_perm  $MODPATH/scripts/v2ray.tproxy     0  0  0755
-set_perm  $MODPATH/scripts/dnscrypt-proxy.service   0  0  0755
 set_perm  $MODPATH/system/bin/v2ray  ${inet_uid}  ${inet_uid}  0755
 set_perm  $MODPATH/system/bin/v2ctl  ${inet_uid}  ${inet_uid}  0755
 set_perm  /data/v2ray                ${inet_uid}  ${inet_uid}  0755
-set_perm  $MODPATH/system/bin/dnscrypt-proxy ${net_raw_uid} ${net_raw_uid} 0755

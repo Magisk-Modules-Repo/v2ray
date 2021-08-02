@@ -2,6 +2,10 @@
 
 This is a v2ray module for Magisk, and includes binaries for arm, arm64, x86, x64.
 
+## 2021-08-01 Update
+
+- Delete dnscrypt-proxy
+- Fix `Illegal instruction` on android-arm64(change the binary to android version)
 
 
 ## Included
