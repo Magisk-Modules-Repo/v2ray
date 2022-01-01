@@ -2,16 +2,19 @@
 
 This is a v2ray module for Magisk, and includes binaries for arm, arm64, x86, x64.
 
+## 2022-01-01 Update
+- Clean up repository,Delete history binary files.
+
 ## 2021-08-01 Update
 
 - Delete dnscrypt-proxy
-- Fix `Illegal instruction` on android-arm64(change the binary to android version)
+- Fix `Illegal instruction` on android-arm64(change the binary to android build version)
 
 
 ## Included
 
 * [V2Ray core](<https://github.com/v2fly/v2ray-core>)
-* [dnscrypt-proxy](<https://github.com/DNSCrypt/dnscrypt-proxy>)
+* ~~[dnscrypt-proxy](<https://github.com/DNSCrypt/dnscrypt-proxy>)~~
 * [magisk-module-installer](https://github.com/topjohnwu/magisk-module-installer)
 
 - V2Ray service script and Android transparent proxy iptables script
@@ -31,9 +34,7 @@ You can download the release installer zip file and install it via the Magisk Ma
 - Please make sure the config is correct. You can check it by running a command :
 
    `export V2RAY_LOCATION_ASSET=/data/v2ray; v2ray -test -config /data/v2ray/config.json`  in android terminal or ssh.
-
-- dnscrypt-proxy config file is store in `/data/v2ray/dnscrypt-proxy/` folder, you can update cn domains list via running the shell script `update-rules.sh` or if you dislike the default rules, you can edit them by yourself. ( If you want to disable dnscrypt-proxy, just delete the config file `/data/v2ray/dnscrypt-proxy/dnscrypt-proxy.toml` )
-
+- ~~dnscrypt-proxy config file is store in `/data/v2ray/dnscrypt-proxy/` folder, you can update cn domains list via running the shell script `update-rules.sh` or if you dislike the default rules, you can edit them by yourself. ( If you want to disable dnscrypt-proxy, just delete the config file `/data/v2ray/dnscrypt-proxy/dnscrypt-proxy.toml` )~~
 - Tips: Please notice that the default configuration has already set inbounds section to cooperate work with transparent proxy script. It is recommended that you only edit the first element of outbounds section to your proxy server and edit file `/data/v2ray/appid.list` to select which App to proxy.
 
 
