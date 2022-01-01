@@ -120,7 +120,7 @@ flush_nat_iptables() {
   echo "[Info]: Clean nat proxy iptables rules."
   iptables_chains=`iptables-save -t nat | cut -d ' ' -f 1 | tr "\n" " "`
   ${iptables_wait} -t nat -D PREROUTING -p tcp -j GUEST_TCP_PROXY 2>/dev/null
-  ${iptables_wait} -t nat -D OUTPUT -p tcp -j APP_TCP_PROXY 2>/dev/null
+  ${iptables_wait} -t nat -D OUTPUT -p tcp ! --dport 853 -j APP_TCP_PROXY 2>/dev/null
   if eval "echo \"${iptables_chains}\" | grep -q \":GUEST_TCP_PROXY \"" ; then
     ${iptables_wait} -t nat -F GUEST_TCP_PROXY
     ${iptables_wait} -t nat -X GUEST_TCP_PROXY
@@ -176,7 +176,7 @@ proxy_app_tcp_iptables() {
     ${iptables_wait} -t nat -A APP_TCP_PROXY -m owner ! --uid-owner ${inet_uid} -j V2RAY
   fi
   ## apply proxy rules to iptables
-  ${iptables_wait} -t nat -A OUTPUT -p tcp -j APP_TCP_PROXY
+  ${iptables_wait} -t nat -A OUTPUT -p tcp ! --dport 853 -j APP_TCP_PROXY
 }
 
 proxy_guest_tcp_iptables() {
