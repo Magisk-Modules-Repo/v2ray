@@ -48,7 +48,6 @@ unzip -j -o "${download_v2ray_zip}" "geosite.dat" -d /data/v2ray >&2
 unzip -j -o "${download_v2ray_zip}" "v2ray" -d $MODPATH/system/bin >&2
 unzip -j -o "${download_v2ray_zip}" "v2ctl" -d $MODPATH/system/bin >&2
 unzip -j -o "${ZIPFILE}" 'v2ray/scripts/*' -d $MODPATH/scripts >&2
-unzip -j -o "${ZIPFILE}" "v2ray/bin/$ARCH/dnscrypt-proxy" -d $MODPATH/system/bin >&2
 unzip -j -o "${ZIPFILE}" 'service.sh' -d $MODPATH >&2
 unzip -j -o "${ZIPFILE}" 'uninstall.sh' -d $MODPATH >&2
 rm "${download_v2ray_zip}"

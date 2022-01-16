@@ -46,7 +46,7 @@ find_netstat_path() {
 
 probe_v2ray_listen() {
   find_netstat_path || return
-  v2ray_listen=`netstat -tnlp | grep v2ray | grep LISTEN`
+  v2ray_listen=`netstat -tnlp 2>/dev/null | grep v2ray | grep LISTEN`
   if eval "echo \"${v2ray_listen}\" | grep -q :::${proxy_port}" || eval "echo \"${v2ray_listen}\" | grep -q 0.0.0.0:${proxy_port}" || eval "echo \"${v2ray_listen}\" | grep -q '\[::\]:${proxy_port}'" ; then
     v2ray_share=true
     return
