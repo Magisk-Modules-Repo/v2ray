@@ -8,7 +8,3 @@ start_proxy () {
     ${MODDIR}/v2ray.tproxy enable &>> /data/v2ray/run/service.log &
   fi
 }
-if [ ! -f /data/v2ray/manual ] ; then
-  start_proxy
-  inotifyd ${MODDIR}/v2ray.inotify ${MODDIR}/.. &>> /data/v2ray/run/service.log &
-fi
