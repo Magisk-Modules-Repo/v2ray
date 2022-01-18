@@ -1,115 +1,78 @@
-# V2ray Magisk Module
+# V2ray Magisk模块
 
-This is a v2ray module for Magisk, and includes binaries for arm, arm64, x86, x64.
+基于Magisk的V2Ray代理，使用iptables转发，相较于VPN模式更为省电、无感。
 
-## 2022-01-01 Update
-- Clean up repository,Delete history binary files.
+## 历史版本
+本版本是fork自[v2ray-for-android](https://github.com/Magisk-Modules-Repo/v2ray)。由于源项目年久失修，在使用时需要大幅度自行调整内容。就将自己的改动保存到了自己的仓库。
+本仓库删除了历史遗留的二进制大文件，直接检出旧版本不保证能正常使用，有需要匹配旧设备以及查看历史内容的需求请在[源仓库](https://github.com/Magisk-Modules-Repo/v2ray)查看。
 
-## 2021-08-01 Update
+## 包含内容
 
-- Delete dnscrypt-proxy
-- Fix `Illegal instruction` on android-arm64(change the binary to android build version)
+- [V2Ray core](<https://github.com/v2fly/v2ray-core>): V2Ray核心代理程序
+- 基于iptables的代理脚本
+- [V2Manager](<https://github.com/yatsuki/v2manager>)：管理核心程序以及iptables的APP
+- [magisk-module-installer](https://github.com/topjohnwu/magisk-module-installer)
 
+## 安装
 
-## Included
+目前还未合并至Magisk官方模块仓库，下载[zip](https://github.com/yatsuki/v2ray/releases)后自行在`Magisk Manager`中从本地安装
 
-* [V2Ray core](<https://github.com/v2fly/v2ray-core>)
-* ~~[dnscrypt-proxy](<https://github.com/DNSCrypt/dnscrypt-proxy>)~~
-* [magisk-module-installer](https://github.com/topjohnwu/magisk-module-installer)
+## 配置文件(底层)
 
-- V2Ray service script and Android transparent proxy iptables script
+- `/data/v2ray/config.json` V2Ray配置文件
+- `/data/v2ray/appid.list` 需要代理的APP列表
+- `/data/v2ray/softap.list` 需要代理的子网
 
+## 使用方法
 
+### 通过命令行
 
-## Install
+#### 启动停止V2Ray进程
+V2ray的进程可以通过下面的脚本来进行管理，默认情况下V2Ray进程将开机自动运行:
+```
+/data/adb/modules/v2ray/script/v2ray.service (start|stop|restart|status)
+```
 
-You can download the release installer zip file and install it via the Magisk Manager App.
+#### 使用iptables代理应用
+代理iptables规则可以通过下面的脚本管理，同V2Ray进程一样默认情况下iptables规则将开机自动运行:
+```
+/data/adb/modules/v2ray/script/v2ray.tproxy (enable|disable|renew)
+```
+- 全局代理
+在`appid.list`编辑内容:
+```
+0
+```
 
+- 分应用代理
+在`appid.list`指定需要代理应用的UID，例:
+```
+10131
+```
+UID可以通过应用包名在`/data/system/packages.list`中找到：
+``` shell
+lavender:/ $ pm list package -3 
+package:com.vanced.android.youtube # 应用 Vanced Youtube
+lavender:/ $ grep 'com.vanced.android.youtube' /data/system/packages.list
+com.vanced.android.youtube 10131 0 /data/user/0/com.vanced.android.youtube ....
+# 10131即是应用Vanced Youtube的UID
+```
 
+- 代理热点子网
+在`softap.list`中指定热点子网IP即可，也可以使用网段，例:
+```
+192.168.43.0/24
+```
+各种机型的ROM中打开热点时子网网段并不一致，请根据实际情况编辑
 
-## Config
+#### 关闭代理的开机自启
+在`/data/v2ray/`目录下新建空白文件`manual`即可
+``` shell
+touch /data/v2ray/manaual
+```
 
-- V2ray config file is store in `/data/v2ray/config.json` .
-
-- Please make sure the config is correct. You can check it by running a command :
-
-   `export V2RAY_LOCATION_ASSET=/data/v2ray; v2ray -test -config /data/v2ray/config.json`  in android terminal or ssh.
-- ~~dnscrypt-proxy config file is store in `/data/v2ray/dnscrypt-proxy/` folder, you can update cn domains list via running the shell script `update-rules.sh` or if you dislike the default rules, you can edit them by yourself. ( If you want to disable dnscrypt-proxy, just delete the config file `/data/v2ray/dnscrypt-proxy/dnscrypt-proxy.toml` )~~
-- Tips: Please notice that the default configuration has already set inbounds section to cooperate work with transparent proxy script. It is recommended that you only edit the first element of outbounds section to your proxy server and edit file `/data/v2ray/appid.list` to select which App to proxy.
-
-
-
-## Usage
-
-### Normal usage ( Default and Recommended )
-
-#### Manage service start / stop
-
-- V2Ray service is auto-run after system boot up by default.
-- You can start or stop v2ray service by simply turn on or turn off the module via Magisk Manager App. Start service may wait about 10 second and stop service may take effect immediately.
-
-
-
-#### Select which App to proxy
-
-- If you expect transparent proxy ( read Transparent proxy section for more detail ) for specific Apps, just write down these Apps' uid in file `/data/v2ray/appid.list` . 
-
-  Each App's uid should separate by space or just one App's uid per line. ( for Android App's uid , you can search App's package name in file `/data/system/packages.list` , or you can look into some App like Shadowsocks. )
-
-- If you expect all Apps proxy by V2Ray with transparent proxy, just write a single number `0` in file `/data/v2ray/appid.list` .
-
-- If you expect all Apps proxy by V2Ray with transparent proxy EXCEPT specific Apps, write down `#bypass` at the first line then these Apps' uid separated as above in file `/data/v2ray/appid.list`. 
-
-- Transparent proxy won't take effect until the V2Ray service start normally and file `/data/v2ray/appid.list` is not empty.
-
-
-
-#### Share transparent proxy to WiFi guest or USB guest
-
-- Transparent proxy is share to WiFi guest by default.
-- If you don't want to share proxy to WiFi guest or USB guest, delete the file `/data/v2ray/softap.list` or empty it.
-- For most situation, Android WiFi hotspot subnet is `192.168.43.0/24`, and USB subnet is `192.168.42.0/24`. If your device is not conform to it , please write down the subnet you want proxy in `/data/v2ray/softap.list`. ( You can run command `ip addr` to search the subnet )
-
-
-
-### Advanced usage ( for Debug and Develop only )
-
-#### Enter manual mode
-
-If you want to control V2Ray by running command totally, just add a file `/data/v2ray/manual`.  In this situation, V2Ray service won't start on boot automatically and you cann't manage service start/stop via Magisk Manager App. 
-
-
-
-#### Manage service start / stop
-
-- V2Ray service script is `$MODDIR/scripts/v2ray.service`.
-
-- For example, in my environment ( Magisk version: 18100 ; Magisk Manager version v7.1.1 )
-
-  - Start service : 
-
-    `/sbin/.magisk/img/v2ray/scripts/v2ray.service start`
-
-  - Stop service :
-
-    `/sbin/.magisk/img/v2ray/scripts/v2ray.service stop`
-
-
-
-#### Manage transparent proxy enable / disable
-
-- Transparent proxy script is `$MODDIR/scripts/v2ray.tproxy`.
-
-- For example, in my environment ( Magisk version: 18100 ; Magisk Manager version v7.1.1 )
-
-  - Enable Transparent proxy : 
-
-    `/sbin/.magisk/img/v2ray/scripts/v2ray.tproxy enable`
-
-  - Disable Transparent proxy :
-
-    `/sbin/.magisk/img/v2ray/scripts/v2ray.tproxy disable`
-
+### 通过管理应用
+请参照[v2manager](https://github.com/yatsuki/v2manager)页面
 
 
 ## Transparent proxy
@@ -148,11 +111,11 @@ Android system **iptables**      [ localhost inside ]
 
 
 
-## Uninstall
+## 卸载
 
-1. Uninstall the module via Magisk Manager App.
-2. You can clean v2ray data dir by running command `rm -rf /data/v2ray` .
-
+1. 删除v2manager应用 `pm uninstall co.lintian.v2manager`
+2. 在Magisk Manager中停用并删除本插件
+3. 删除v2ray目录 `rm -rf /data/v2ray`
 
 
 ## Project V
