@@ -16,7 +16,7 @@ softap_list=()
 v2ray_share=false
 proxy_for_app=false
 proxy_for_guest=false
-intranet=(0.0.0.0/8 127.0.0.0/8 169.254.0.0/16 172.16.0.0/12 224.0.0.0/4 240.0.0.0/4)
+intranet=(0.0.0.0/8 127.0.0.0/8 169.254.0.0/16 172.16.0.0/12 192.168.0.0/16 224.0.0.0/4 240.0.0.0/4)
 
 suit_iptables_version() {
   iptables_version=`iptables -V | grep -o "v1\.[0-9]"`
@@ -46,8 +46,8 @@ find_netstat_path() {
 
 probe_v2ray_listen() {
   find_netstat_path || return
-  v2ray_listen=`netstat -tnlp | grep v2ray | grep LISTEN`
-  if eval "echo \"${v2ray_listen}\" | grep -q :::${proxy_port}" || eval "echo \"${v2ray_listen}\" | grep -q 0.0.0.0:${proxy_port}" ; then
+  v2ray_listen=`netstat -tnlp 2>/dev/null | grep v2ray | grep LISTEN`
+  if eval "echo \"${v2ray_listen}\" | grep -q :::${proxy_port}" || eval "echo \"${v2ray_listen}\" | grep -q 0.0.0.0:${proxy_port}" || eval "echo \"${v2ray_listen}\" | grep -q '\[::\]:${proxy_port}'" ; then
     v2ray_share=true
     return
   elif eval "echo \"${v2ray_listen}\" | grep -q :${proxy_port}" ; then
@@ -120,7 +120,7 @@ flush_nat_iptables() {
   echo "[Info]: Clean nat proxy iptables rules."
   iptables_chains=`iptables-save -t nat | cut -d ' ' -f 1 | tr "\n" " "`
   ${iptables_wait} -t nat -D PREROUTING -p tcp -j GUEST_TCP_PROXY 2>/dev/null
-  ${iptables_wait} -t nat -D OUTPUT -p tcp -j APP_TCP_PROXY 2>/dev/null
+  ${iptables_wait} -t nat -D OUTPUT -p tcp ! --dport 853 -j APP_TCP_PROXY 2>/dev/null
   if eval "echo \"${iptables_chains}\" | grep -q \":GUEST_TCP_PROXY \"" ; then
     ${iptables_wait} -t nat -F GUEST_TCP_PROXY
     ${iptables_wait} -t nat -X GUEST_TCP_PROXY
@@ -176,7 +176,7 @@ proxy_app_tcp_iptables() {
     ${iptables_wait} -t nat -A APP_TCP_PROXY -m owner ! --uid-owner ${inet_uid} -j V2RAY
   fi
   ## apply proxy rules to iptables
-  ${iptables_wait} -t nat -A OUTPUT -p tcp -j APP_TCP_PROXY
+  ${iptables_wait} -t nat -A OUTPUT -p tcp ! --dport 853 -j APP_TCP_PROXY
 }
 
 proxy_guest_tcp_iptables() {

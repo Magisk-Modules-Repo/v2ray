@@ -50,7 +50,7 @@ wait_v2ray_listen() {
   wait_count=0
   v2ray_pid=`cat ${pid_file}`
   find_netstat_path && \
-  check_v2ray_cmd="netstat -tnlp | grep v2ray | grep -q LISTEN" || \
+  check_v2ray_cmd="netstat -tnlp 2>/dev/null | grep v2ray | grep -q LISTEN" || \
   check_v2ray_cmd="ls -lh /proc/${v2ray_pid}/fd | grep -q socket"
   while probe_v2ray_alive && ! eval "${check_v2ray_cmd}" && [ ${wait_count} -lt 100 ] ; do
     sleep 1 ; wait_count=$((${wait_count} + 1))

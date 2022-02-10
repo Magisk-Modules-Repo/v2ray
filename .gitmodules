@@ -1,0 +1,3 @@
+[submodule "v2manager"]
+	path = app
+	url = https://github.com/yatsuki/v2manager.git
